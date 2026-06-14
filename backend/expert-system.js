@@ -147,10 +147,15 @@ function evaluateProduct(productId) {
 // Вызывается при старте сервера.
 // ----------------------------------------------------------------------------
 function seedRulesIfEmpty() {
+  // Приводим базу правил к эталонному набору при старте.
+  // Если правила уже совпадают по количеству с эталоном — ничего не делаем.
+  // Иначе очищаем и заливаем заново (чинит ситуацию со старым/неполным набором).
+  const EXPECTED_RULES_COUNT = 8;
   const count = db.prepare('SELECT COUNT(*) AS c FROM expert_rules').get().c;
-  if (count > 0) return;
+  if (count === EXPECTED_RULES_COUNT) return;
 
-  console.log('[expert-system] База правил пустая — наполняем начальным набором...');
+  console.log(`[expert-system] В базе ${count} правил вместо ${EXPECTED_RULES_COUNT} — пересоздаём эталонный набор...`);
+  db.prepare('DELETE FROM expert_rules').run();
 
   const rules = [
     // ---- Правила по дате планового ТО ----
