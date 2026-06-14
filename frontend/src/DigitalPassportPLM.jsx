@@ -12,7 +12,7 @@ import QRCode from 'qrcode';
 // единообразно (не разводя fetch'ы по всем компонентам).
 // ============================================================================
 
-const API_BASE = 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 async function apiRequest(path, options = {}) {
   let response;
