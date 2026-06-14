@@ -1,0 +1,17 @@
+{
+  "name": "digital-passport-backend",
+  "version": "1.0.0",
+  "description": "Backend для системы управления ЖЦИ (дипломный проект)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1"
+  }
+}

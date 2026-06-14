@@ -1,0 +1,17 @@
+# Зависимости (восстанавливаются через npm install)
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Сборка фронтенда (пересобирается на сервере)
+frontend/dist/
+
+# Локальная база данных (пересоздаётся из seed на сервере)
+backend/database.db
+
+# Загруженные файлы (локальные)
+backend/uploads/
+
+# Системные
+.DS_Store
+*.log
