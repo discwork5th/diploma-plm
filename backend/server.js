@@ -44,31 +44,20 @@ app.use('/api', documentsRouter); // маршруты документов на�
 app.use('/api', expertSystemRouter); // экспертная система: /products/:id/evaluate и /expert-rules
 app.use('/api', dashboardRouter);    // дашборд: /dashboard/summary
 
-// ---- Корневой эндпоинт ----
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Digital Passport PLM API',
-    version: '1.1.0',
-    endpoints: [
-      'GET    /api/products',
-      'GET    /api/products/:id',
-      'POST   /api/products',
-      'PUT    /api/products/:id',
-      'DELETE /api/products/:id',
-      'GET    /api/lifecycle-stages',
-      'POST   /api/products/:id/documents',
-      'GET    /api/documents/:id/download',
-      'DELETE /api/documents/:id',
-      'GET    /api/products/:id/evaluate',
-      'GET    /api/expert-rules',
-      'GET    /api/dashboard/summary'
-    ]
-  });
-});
 
+
+// ---- Корневой эндпоинт ----
+// ---- Раздача собранного фронтенда (для онлайн-развёртывания) ----
+// Vite собирает фронт в ../frontend/dist. Отдаём эти файлы статикой,
+// а на все «не-API» запросы возвращаем index.html (для работы SPA).
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 // ---- Запуск сервера ----
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] Сервер запущен: http://localhost:${PORT}`);
   console.log(`[server] Список эндпоинтов: http://localhost:${PORT}/`);
 });
