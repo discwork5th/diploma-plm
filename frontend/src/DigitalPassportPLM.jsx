@@ -10,6 +10,7 @@ import ServerUnavailableBanner from './components/common/ServerUnavailableBanner
 import Dashboard from './components/dashboard/Dashboard';
 import CatalogPage from './pages/CatalogPage';
 import ImportPage from './pages/ImportPage';
+import AssistantPage from './pages/AssistantPage';
 import ImportPreviewModal from './components/import/ImportPreviewModal';
 import RulesManager from './components/rules/RulesManager';
 import ProductEditor from './components/product/ProductEditor';
@@ -280,6 +281,10 @@ const DigitalPassportPLM = () => {
             onEdit={editProduct}
             onDelete={deleteProduct}
           />
+        )}
+
+        {ready && view === 'assistant' && (
+          <AssistantPage getStageStyle={getStageStyle} onOpenProduct={openProduct} />
         )}
 
         {!serverError && view === 'import' && <ImportPage onFileSelected={handleFileSelected} />}

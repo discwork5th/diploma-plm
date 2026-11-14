@@ -9,6 +9,10 @@ frontend/dist/
 # Локальная база данных (пересоздаётся из seed на сервере)
 backend/database.db
 
+# Секреты: ключи API и настройки сервера
+backend/.env
+.env
+
 # Загруженные файлы (локальные)
 backend/uploads/
 

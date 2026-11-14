@@ -9,6 +9,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+// Настройки из backend/.env (ключ модели, пути к данным). Файл не хранится в git,
+// образец лежит в .env.example. Встроенная функция Node.js, без лишних пакетов.
+const ENV_FILE = path.join(__dirname, '.env');
+if (require('fs').existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
+
 // Импорт database.js здесь же запускает инициализацию БД при первом старте
 require('./database');
 
@@ -22,6 +27,7 @@ const stagesRouter = require('./routes/lifecycle-stages');
 const documentsRouter = require('./routes/documents');
 const expertSystemRouter = require('./routes/expert-system');
 const dashboardRouter = require('./routes/dashboard');
+const assistantRouter = require('./routes/assistant');
 
 const app = express();
 
@@ -35,13 +41,14 @@ app.use(express.json({ limit: '10mb' }));
 
 // ---- Статика для загруженных файлов ----
 // Чтобы можно было открыть документ по прямой ссылке /uploads/products/1/file.pdf.
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(process.env.UPLOADS_DIR || path.join(__dirname, 'uploads')));
 
 // ---- API маршруты ----
 app.use('/api/products', productsRouter);
 app.use('/api/lifecycle-stages', stagesRouter);
 app.use('/api', documentsRouter); // маршруты документов начинаются с /products/:id/documents
 app.use('/api', expertSystemRouter); // экспертная система: /products/:id/evaluate и /expert-rules
+app.use('/api', assistantRouter);    // ИИ-подбор: /assistant/status и /assistant/recommend
 app.use('/api', dashboardRouter);    // дашборд: /dashboard/summary
 
 

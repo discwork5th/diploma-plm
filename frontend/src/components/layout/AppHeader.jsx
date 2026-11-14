@@ -3,6 +3,7 @@ import { Factory } from 'lucide-react';
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Дашборд' },
   { id: 'catalog', label: 'Каталог' },
+  { id: 'assistant', label: 'ИИ-подбор' },
   { id: 'rules', label: 'База правил' },
   { id: 'import', label: 'Импорт данных' },
 ];

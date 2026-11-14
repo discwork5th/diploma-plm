@@ -69,6 +69,14 @@ export const api = {
   deleteRule: (id) => apiRequest(`/api/expert-rules/${id}`, { method: 'DELETE' }),
   toggleRule: (id) => apiRequest(`/api/expert-rules/${id}/toggle`, { method: 'PATCH' }),
 
+  // ИИ-подбор оборудования
+  getAssistantStatus: () => apiRequest('/api/assistant/status'),
+  recommend: (query) => apiRequest('/api/assistant/recommend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  }),
+
   // Дашборд
   getDashboardSummary: () => apiRequest('/api/dashboard/summary'),
 };
