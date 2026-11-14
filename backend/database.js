@@ -1,15 +1,19 @@
 // ============================================================================
 // database.js — модуль работы с БД
 // ----------------------------------------------------------------------------
-// Создаёт файл database.db, если его нет, и применяет схему + начальные данные.
+// Создаёт файл базы, если его нет, применяет схему, справочники и демо-каталог.
 // Экспортирует единственный объект db, через который работают все маршруты.
 // ============================================================================
 
 const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
+const { seedDemoData } = require('./demo-data');
 
-const DB_FILE = path.join(__dirname, 'database.db');
+// Путь к файлу базы можно переопределить переменной окружения DB_PATH:
+// на сервере база должна лежать на постоянном диске, а не рядом с кодом.
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, 'database.db');
+fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
 const SCHEMA_FILE = path.join(__dirname, 'schema.sql');
 const SEED_FILE = path.join(__dirname, 'seed.sql');
 
@@ -34,6 +38,7 @@ if (!tableExists) {
 
   const seed = fs.readFileSync(SEED_FILE, 'utf8');
   db.exec(seed);
+  seedDemoData(db);
 
   console.log('[database] БД успешно инициализирована.');
 } else {

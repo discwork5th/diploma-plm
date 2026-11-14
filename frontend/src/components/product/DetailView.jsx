@@ -103,11 +103,6 @@ const DetailView = ({
           />
         )}
       </div>
-
-      <div className="text-center text-sm text-slate-500">
-        <p>Прототип системы управления жизненным циклом изделия</p>
-        <p className="mt-1">Дипломный проект • УПТС • 2026</p>
-      </div>
     </div>
   );
 };

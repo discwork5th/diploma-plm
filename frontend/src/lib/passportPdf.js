@@ -14,17 +14,14 @@ import { formatDateRu } from './format';
 // Кеш для загруженного шрифта, чтобы повторные генерации не качали его заново
 let fontCache = null;
 
-// Грузим Roboto Regular для поддержки кириллицы.
-// Источник — jsDelivr (зеркало npm-пакета @fontsource/roboto), TTF-файл с кириллическим subset.
-// Если не загрузится — паспорт сформируется без кастомного шрифта (кириллица превратится в квадратики).
+// Грузим Roboto Regular (TTF с кириллицей) из файлов самого приложения:
+// public/fonts/Roboto-Regular.ttf, лицензия SIL Open Font License.
+// Раньше шрифт качался с внешних CDN, но они бывают недоступны,
+// и тогда кириллица в паспорте превращалась в квадратики.
 async function loadCyrillicFont() {
   if (fontCache) return fontCache;
 
-  // jsPDF нужен шрифт в формате TTF (WOFF он не понимает). Пробуем источники по очереди.
-  const ttfSources = [
-    'https://cdn.jsdelivr.net/gh/googlefonts/roboto-2@main/src/hinted/Roboto-Regular.ttf',
-    'https://raw.githubusercontent.com/openmaptiles/fonts/master/roboto/Roboto-Regular.ttf',
-  ];
+  const ttfSources = ['/fonts/Roboto-Regular.ttf'];
 
   for (const url of ttfSources) {
     try {
@@ -70,7 +67,7 @@ export async function generateProductPassportPDF(product, stages, evaluation) {
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text(`Сформирован: ${new Date().toLocaleString('ru-RU')}`, margin, y);
-  doc.text('Система управления ЖЦИ • СГТУ им. Гагарина Ю.А.', pageWidth - margin, y, { align: 'right' });
+  doc.text('Система управления жизненным циклом изделий', pageWidth - margin, y, { align: 'right' });
   y += 4;
   doc.setDrawColor(200, 200, 200);
   doc.line(margin, y, pageWidth - margin, y);
@@ -255,17 +252,12 @@ export async function generateProductPassportPDF(product, stages, evaluation) {
     }
   }
 
-  // ---- Подвал на каждой странице ----
+  // ---- Номера страниц ----
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(
-      'Дипломный проект • Елисеев Д.Д. • СГТУ ИнЭТиП б-УПТС-41 • 2026',
-      margin,
-      doc.internal.pageSize.getHeight() - 8
-    );
     doc.text(
       `Страница ${i} из ${pageCount}`,
       pageWidth - margin,
