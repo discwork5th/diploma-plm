@@ -98,9 +98,9 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
       {/* Показатели: ячейки одной таблицы, разделённые тонкими линиями */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-300 border border-slate-300 rounded-xl overflow-hidden">
         <SummaryTile label="Всего единиц оборудования" value={data.totalProducts} onClick={onGoCatalog} />
-        <SummaryTile label="В эксплуатации" value={inOperation} />
-        <SummaryTile label="Требуют внимания" value={warningCount} tone="text-caution" />
-        <SummaryTile label="Аварийное состояние" value={data.bySeverity.critical} tone="text-alarm" />
+        <SummaryTile label="В эксплуатации" value={inOperation} onClick={() => onShowInCatalog({ stage: 'operation' })} />
+        <SummaryTile label="Требуют внимания" value={warningCount} tone="text-caution" onClick={() => onShowInCatalog({ severity: 'attention' })} />
+        <SummaryTile label="Аварийное состояние" value={data.bySeverity.critical} tone="text-alarm" onClick={() => onShowInCatalog({ severity: 'critical' })} />
       </div>
 
       {/* Диаграммы */}

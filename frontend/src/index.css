@@ -103,3 +103,7 @@
 .plant-ctl-main { background: #fff; color: #000; border-color: #fff; font-size: 13px; padding: 8px 12px; }
 .plant-ctl-main:hover { color: #000; background: #E6E6E3; }
 .plant-3d.is-night { background: radial-gradient(ellipse at 50% 40%, #0d0f14 0%, #000 70%); }
+
+/* Выпадающий список: появляется мягко, сверху вниз */
+@keyframes select-pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+.select-pop { animation: select-pop 0.14s ease-out; transform-origin: top; }

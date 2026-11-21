@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, RefreshCw, Brain } from 'lucide-react';
 import { api } from '../../api/client';
+import Select from '../common/Select';
 
 // ============================================================================
 // Менеджер базы правил экспертной системы.
@@ -171,27 +172,11 @@ const RulesManager = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-slate-700 mb-2">Тип условия</label>
-              <select
-                value={form.condition_type}
-                onChange={(e) => setForm({ ...form, condition_type: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                {CONDITION_TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+              <Select value={form.condition_type} onChange={(v) => setForm({ ...form, condition_type: v })} options={CONDITION_TYPE_OPTIONS} className="w-full" />
             </div>
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-slate-700 mb-2">Оператор</label>
-              <select
-                value={form.operator}
-                onChange={(e) => setForm({ ...form, operator: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                {OPERATOR_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+              <Select value={form.operator} onChange={(v) => setForm({ ...form, operator: v })} options={OPERATOR_OPTIONS} className="w-full" />
             </div>
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-slate-700 mb-2">Пороговое значение</label>
@@ -213,15 +198,7 @@ const RulesManager = () => {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Уровень критичности</label>
-            <select
-              value={form.severity}
-              onChange={(e) => setForm({ ...form, severity: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              {SEVERITY_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <Select value={form.severity} onChange={(v) => setForm({ ...form, severity: v })} options={SEVERITY_OPTIONS} className="w-full" />
           </div>
 
           <div>

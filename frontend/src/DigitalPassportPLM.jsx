@@ -49,7 +49,7 @@ const DigitalPassportPLM = () => {
   const [returnTo, setReturnTo] = useState('catalog');
   const scrollPositions = useRef({});
   // Фильтр каталога по месту, заданный извне (например, кликом по корпусу на генплане)
-  const [catalogLocation, setCatalogLocation] = useState(null);
+  const [catalogFilter, setCatalogFilter] = useState(null);
   // Командная строка Ctrl+K и вопрос помощнику из неё
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [askRequest, setAskRequest] = useState(null);
@@ -322,8 +322,8 @@ const DigitalPassportPLM = () => {
         {ready && view === 'dashboard' && (
           <Dashboard
             onOpenProduct={openProduct}
-            onGoCatalog={() => navigate('catalog')}
-            onShowInCatalog={(location) => { setCatalogLocation({ location, at: Date.now() }); navigate('catalog'); }}
+            onGoCatalog={() => { setCatalogFilter({ at: Date.now() }); navigate('catalog'); }}
+            onShowInCatalog={(filter) => { setCatalogFilter({ ...filter, at: Date.now() }); navigate('catalog'); }}
           />
         )}
 
@@ -340,7 +340,7 @@ const DigitalPassportPLM = () => {
             onOpen={(product) => openProduct(product.id)}
             onEdit={editProduct}
             onDelete={deleteProduct}
-            locationRequest={catalogLocation}
+            filterRequest={catalogFilter}
           />
           </div>
         )}

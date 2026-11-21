@@ -11,6 +11,7 @@
 
 const express = require('express');
 const db = require('../database');
+const { evaluateProduct } = require('../expert-system');
 
 const router = express.Router();
 
@@ -91,6 +92,11 @@ router.get('/', (req, res) => {
                        current_stage_id as currentStage, image_path as image, location
                 FROM products ORDER BY id`)
       .all();
+    // Состояние по экспертной системе — для фильтра и цветной метки в каталоге
+    for (const r of rows) {
+      const e = evaluateProduct(r.id);
+      r.severity = e ? e.overallSeverity : 'normal';
+    }
     res.json(rows);
   } catch (err) {
     console.error(err);

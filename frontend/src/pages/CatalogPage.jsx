@@ -1,30 +1,46 @@
 import { useMemo, useState } from 'react';
-import { Clock, Download, Edit, Filter, MapPin, Package, Plus, Search, Trash2 } from 'lucide-react';
+import { Activity, Clock, Download, Edit, Filter, MapPin, Package, Plus, Search, Trash2, X } from 'lucide-react';
 import ProductImage from '../components/common/ProductImage';
+import Select from '../components/common/Select';
+
+// Фильтр по состоянию (выводы экспертной системы). «Требуют внимания» —
+// как на дашборде: и предупреждения, и аварийные
+const SEVERITY_FILTERS = [
+  { value: 'all', label: 'Любое состояние', test: () => true },
+  { value: 'attention', label: 'Требуют внимания', dot: 'bg-caution', test: s => s === 'warning' || s === 'critical' },
+  { value: 'critical', label: 'Аварийное', dot: 'bg-alarm', test: s => s === 'critical' },
+  { value: 'warning', label: 'Предупреждение', dot: 'bg-caution', test: s => s === 'warning' },
+  { value: 'normal', label: 'В норме', dot: 'bg-ok', test: s => s === 'normal' || s === 'info' }
+];
+const SEVERITY_DOT = { critical: 'bg-alarm', warning: 'bg-caution', info: 'bg-slate-400', normal: 'bg-ok' };
+const SEVERITY_TEXT = { critical: 'Аварийное', warning: 'Предупреждение', info: 'Есть замечания', normal: 'В норме' };
 
 // Каталог изделий: поиск, фильтр по этапу ЖЦ, карточки изделий
-const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen, onEdit, onDelete, locationRequest }) => {
+const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen, onEdit, onDelete, filterRequest }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
+  const [filterSeverity, setFilterSeverity] = useState('all');
   // Карточек в парке сотни: показываем порциями, чтобы страница не тормозила
   const PAGE = 30;
   // Сколько карточек показано; при смене поиска или фильтров снова первые PAGE.
   // Сброс считается при отрисовке, а не в эффекте: так не бывает лишнего кадра
   // со старым числом карточек
-  const filterKey = `${searchTerm}|${filterStage}|${filterLocation}`;
+  const filterKey = `${searchTerm}|${filterStage}|${filterLocation}|${filterSeverity}`;
   const [paging, setPaging] = useState({ key: filterKey, shown: PAGE });
   const shown = paging.key === filterKey ? paging.shown : PAGE;
   const setShown = (n) => setPaging({ key: filterKey, shown: n });
 
-  // Переход с генплана: показать оборудование выбранного корпуса
+  // Переход с дашборда или генплана: каталог сразу с нужными фильтрами
   const [seenRequest, setSeenRequest] = useState(null);
-  if (locationRequest && locationRequest !== seenRequest) {
-    setSeenRequest(locationRequest);
-    setFilterLocation(locationRequest.location);
-    setFilterStage('all');
+  if (filterRequest && filterRequest !== seenRequest) {
+    setSeenRequest(filterRequest);
+    setFilterLocation(filterRequest.location || 'all');
+    setFilterStage(filterRequest.stage || 'all');
+    setFilterSeverity(filterRequest.severity || 'all');
     setSearchTerm('');
   }
+  const resetFilters = () => { setFilterLocation('all'); setFilterStage('all'); setFilterSeverity('all'); setSearchTerm(''); };
 
   const locations = useMemo(
     () => [...new Set(products.map(p => p.location).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru')),
@@ -39,9 +55,26 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
         [p.name, p.type, p.manufacturer, p.serialNumber, p.location].filter(Boolean).some(field => field.toLowerCase().includes(query));
       const matchesFilter = filterStage === 'all' || p.currentStage === filterStage;
       const matchesLocation = filterLocation === 'all' || p.location === filterLocation;
-      return matchesSearch && matchesFilter && matchesLocation;
+      const matchesSeverity = SEVERITY_FILTERS.find(f => f.value === filterSeverity).test(p.severity || 'normal');
+      return matchesSearch && matchesFilter && matchesLocation && matchesSeverity;
     });
-  }, [products, searchTerm, filterStage, filterLocation]);
+  }, [products, searchTerm, filterStage, filterLocation, filterSeverity]);
+
+  // Сколько изделий в каждом пункте списка — видно до выбора
+  const count = (fn) => products.filter(fn).length;
+  const stageOptions = [{ value: 'all', label: 'Все этапы', count: products.length },
+    ...stages.map(st => ({ value: st.id, label: st.name, count: count(p => p.currentStage === st.id) }))];
+  const locationOptions = [{ value: 'all', label: 'Все места', count: products.length },
+    ...locations.map(loc => ({ value: loc, label: loc, count: count(p => p.location === loc) }))];
+  const severityOptions = SEVERITY_FILTERS.map(f => ({ value: f.value, label: f.label, dot: f.dot, count: count(p => f.test(p.severity || 'normal')) }));
+
+  // Активные фильтры — плашками над результатами, у каждой крестик
+  const chips = [
+    filterStage !== 'all' && { key: 'stage', label: stages.find(st => st.id === filterStage)?.name, clear: () => setFilterStage('all') },
+    filterLocation !== 'all' && { key: 'loc', label: filterLocation, clear: () => setFilterLocation('all') },
+    filterSeverity !== 'all' && { key: 'sev', label: SEVERITY_FILTERS.find(f => f.value === filterSeverity).label, clear: () => setFilterSeverity('all') },
+    searchTerm && { key: 'q', label: `«${searchTerm}»`, clear: () => setSearchTerm('') }
+  ].filter(Boolean);
 
 
 
@@ -60,32 +93,9 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <select
-                value={filterStage}
-                onChange={e => setFilterStage(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              >
-                <option value="all">Все этапы</option>
-                {stages.map(stage => (
-                  <option key={stage.id} value={stage.id}>
-                    {stage.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <select
-                value={filterLocation}
-                onChange={e => setFilterLocation(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white max-w-xs"
-              >
-                <option value="all">Все места</option>
-                {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-              </select>
-            </div>
+            <Select value={filterStage} onChange={setFilterStage} options={stageOptions} icon={Filter} label="Этап жизненного цикла" className="sm:w-52" />
+            <Select value={filterLocation} onChange={setFilterLocation} options={locationOptions} icon={MapPin} label="Место установки" className="sm:w-60" />
+            <Select value={filterSeverity} onChange={setFilterSeverity} options={severityOptions} icon={Activity} label="Состояние" className="sm:w-56" />
           </div>
           <div className="flex gap-2">
             <button
@@ -106,9 +116,23 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
         </div>
       </div>
 
-      <p className="text-sm text-slate-500 px-1">
-        Найдено: {filteredProducts.length}{filteredProducts.length > shown ? `, показано ${shown}` : ''}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
+        <span className="text-slate-600">
+          Найдено <span className="font-mono text-slate-900">{filteredProducts.length}</span> из {products.length}
+          {filteredProducts.length > shown ? `, показано ${shown}` : ''}
+        </span>
+        {chips.map(c => (
+          <span key={c.key} className="flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-lg bg-white border border-slate-300 text-slate-800">
+            {c.label}
+            <button onClick={c.clear} aria-label={`Убрать фильтр ${c.label}`} className="p-0.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </span>
+        ))}
+        {chips.length > 1 && (
+          <button onClick={resetFilters} className="text-slate-600 underline underline-offset-2 hover:text-slate-900">Сбросить все</button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProducts.slice(0, shown).map(product => {
@@ -127,6 +151,10 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                 </div>
                 <div className="space-y-1 text-sm text-slate-600 mb-4 flex-1">
                   <p>{product.type || '—'}</p>
+                  <p className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${SEVERITY_DOT[product.severity] || 'bg-slate-400'}`} />
+                    {SEVERITY_TEXT[product.severity] || 'В норме'}
+                  </p>
                   <p className="font-mono text-[13px] text-slate-800">
                     Зав. № {product.serialNumber || '—'}
                   </p>

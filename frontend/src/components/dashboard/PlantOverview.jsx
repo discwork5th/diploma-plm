@@ -129,7 +129,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
               <p className="mt-4 mb-4 text-sm text-white/60">Всё оборудование корпуса в норме.</p>
             )}
 
-            <button onClick={() => onShowInCatalog(stat.location)}
+            <button onClick={() => onShowInCatalog({ location: stat.location })}
               className="btn-secondary mt-auto self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
               Всё оборудование корпуса в каталоге
             </button>

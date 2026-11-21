@@ -1,5 +1,6 @@
 import { Upload, Plus, Trash2 } from 'lucide-react';
 import ProductImage from '../common/ProductImage';
+import Select from '../common/Select';
 
 // ============================================================================
 // Редактор изделия
@@ -120,15 +121,7 @@ const ProductEditor = ({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Этап жизненного цикла</label>
-            <select
-              value={editedProduct.currentStage}
-              onChange={(e) => setEditedProduct({ ...editedProduct, currentStage: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              {stages.map(stage => (
-                <option key={stage.id} value={stage.id}>{stage.name}</option>
-              ))}
-            </select>
+            <Select value={editedProduct.currentStage} onChange={(v) => setEditedProduct({ ...editedProduct, currentStage: v })} options={stages.map(stage => ({ value: stage.id, label: stage.name }))} className="w-full" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Фотография изделия</label>
@@ -220,14 +213,7 @@ const ProductEditor = ({
                       className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="Название события"
                     />
-                    <select
-                      value={event.status}
-                      onChange={(e) => onUpdateLifecycleEvent(index, 'status', e.target.value)}
-                      className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="completed">Выполнено</option>
-                      <option value="scheduled">Запланировано</option>
-                    </select>
+                    <Select value={event.status} onChange={(v) => onUpdateLifecycleEvent(index, 'status', v)} options={[{ value: 'completed', label: 'Выполнено' }, { value: 'scheduled', label: 'Запланировано' }]} />
                   </div>
                   <textarea
                     value={event.description || ''}
