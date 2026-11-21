@@ -138,6 +138,14 @@ function llmConfig() {
   return { baseUrl: LLM_BASE_URL.replace(/\/+$/, ''), apiKey: LLM_API_KEY || 'none', model: LLM_MODEL };
 }
 
+// Дополнительные поля запроса под конкретного провайдера.
+// У DeepSeek режим рассуждений включён по умолчанию; с инструментами он требует
+// возвращать рассуждения модели в каждом следующем запросе, иначе ошибка 400.
+// Нашим задачам рассуждения не нужны: выключаем — ответ быстрее и дешевле.
+function providerExtras(cfg) {
+  return /deepseek\.com/.test(cfg.baseUrl) ? { thinking: { type: 'disabled' } } : {};
+}
+
 const SYSTEM_PROMPT = `Ты инженер по подбору промышленного оборудования. Тебе дают запрос пользователя
 и список изделий из каталога предприятия. Выбирай изделия ТОЛЬКО из этого списка, ничего не выдумывай.
 Сравнивай требования из запроса с характеристиками изделий (подача, напор, давление, мощность и т.д.).
@@ -176,6 +184,7 @@ async function askModel(cfg, query, candidates) {
         model: cfg.model,
         temperature: 0.2,
         response_format: { type: 'json_object' },
+        ...providerExtras(cfg),
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
@@ -261,4 +270,4 @@ function status() {
   return { llm: Boolean(cfg), model: cfg ? cfg.model : null };
 }
 
-module.exports = { recommend, status, searchCatalog, loadCatalog, llmConfig, SEVERITY_LABELS };
+module.exports = { recommend, status, searchCatalog, loadCatalog, llmConfig, providerExtras, SEVERITY_LABELS };

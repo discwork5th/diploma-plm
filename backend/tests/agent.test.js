@@ -86,3 +86,9 @@ test('без модели типовые вопросы идут в нужный
     process.env.LLM_BASE_URL = saved;
   }
 });
+
+test('для DeepSeek режим рассуждений выключается, у других провайдеров запрос не меняется', () => {
+  const { providerExtras } = require('../assistant');
+  assert.deepStrictEqual(providerExtras({ baseUrl: 'https://api.deepseek.com' }), { thinking: { type: 'disabled' } });
+  assert.deepStrictEqual(providerExtras({ baseUrl: 'http://localhost:11434/v1' }), {});
+});
