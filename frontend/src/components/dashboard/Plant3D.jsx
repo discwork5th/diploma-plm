@@ -898,15 +898,21 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
       // Первый выбор — при открытии страницы: остаёмся на общем виде
       if (firstSelect) { firstSelect = false; return; }
       const item = buildings.get(key);
-      if (item && apiRef.current.follow) {
+      if (!key) flyHome();                       // выбор сняли (например, кнопкой в сводке) — к общему виду
+      else if (item && apiRef.current.follow) {
         flyTo(new THREE.Vector3(item.center.x, 0.5, item.center.z), 24 + item.size * 2);
         onViewRef.current(true);
       }
     };
-    const resetView = () => {
+    const flyHome = () => {
       flight = { t0: performance.now(), dur: 900, fromT: controls.target.clone(), toT: overview.target.clone(),
                  fromP: camera.position.clone(), toP: overview.position.clone() };
       onViewRef.current(false);
+    };
+    // Общий вид — это и камера, и сводка: выбор корпуса снимается
+    const resetView = () => {
+      flyHome();
+      onSelectRef.current(null);
     };
     // Вернуться к общему виду: Esc или двойной щелчок по пустому месту
     const onKeyDown = (e) => { if (e.key === 'Escape') resetView(); };

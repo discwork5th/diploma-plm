@@ -20,11 +20,79 @@ import { SITE } from './plantSite';
 
 const DOT = { critical: 'bg-alarm', warning: 'bg-caution', info: 'bg-slate-400', normal: 'bg-ok' };
 
+// Сводка по всему заводу, когда корпус не выбран: итоги, корпуса с аварийным
+// оборудованием (клик — выбрать корпус) и самое проблемное оборудование
+function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
+  const sum = (k) => byLocation.reduce((n, l) => n + l[k], 0);
+  const hot = [...byLocation].filter(l => l.critical || l.warning)
+    .sort((a, b) => b.critical - a.critical || b.warning - a.warning).slice(0, 5);
+  const RANK = { critical: 2, warning: 1 };
+  const worst = byLocation.flatMap(l => l.items.map(i => ({ ...i, location: l.location })))
+    .sort((a, b) => (RANK[b.severity] || 0) - (RANK[a.severity] || 0) || (a.daysUntilTO ?? 999) - (b.daysUntilTO ?? 999))
+    .slice(0, 4);
+  const healthy = snapshot ? snapshot.buildings.reduce((n, b) => n + b.units - b.alarms - b.warnings, 0) : null;
+  const running = snapshot ? snapshot.units.length : null;
+  return (
+    <>
+      <h3 className="text-lg font-medium leading-snug">Весь завод</h3>
+      {snapshot && (
+        <p className="text-sm text-white/60 mt-1">
+          Сейчас: нагрузка <span className="font-mono text-white">{snapshot.totalLoad}%</span>, вибрация в норме у{' '}
+          <span className="font-mono text-white">{healthy}</span> из {running}
+        </p>
+      )}
+      <dl className="grid grid-cols-2 gap-px bg-white/15 border border-white/15 mt-4 text-sm">
+        {[
+          ['Единиц на площадке', sum('total'), 'text-white'],
+          ['Аварийных', sum('critical'), 'text-alarm'],
+          ['Требуют внимания', sum('warning'), 'text-caution'],
+          ['ТО до 30 дней', sum('dueTO'), 'text-white']
+        ].map(([label, value, cls]) => (
+          <div key={label} className="bg-black p-3">
+            <dt className="text-white/50 text-xs">{label}</dt>
+            <dd className={`font-mono text-2xl mt-1 ${cls}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-xs text-white/45 mt-4 mb-1">Где больше всего проблем</p>
+      <ul className="divide-y divide-white/10 border-y border-white/10">
+        {hot.map(l => (
+          <li key={l.location}>
+            <button onClick={() => onSelect(l.location)} className="w-full flex items-center gap-2 py-2 text-left text-sm group">
+              <span className="flex-1 truncate group-hover:underline underline-offset-2">{l.location}</span>
+              {l.critical > 0 && <span className="font-mono text-alarm">{l.critical}</span>}
+              {l.warning > 0 && <span className="font-mono text-caution">{l.warning}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {worst.length > 0 && (
+        <>
+          <p className="text-xs text-white/45 mt-4 mb-1">Самое срочное</p>
+          <ul className="divide-y divide-white/10 border-y border-white/10 mb-4">
+            {worst.map(i => (
+              <li key={i.id}>
+                <button onClick={() => onOpenProduct(i.id)} className="w-full text-left py-2 group">
+                  <span className="flex items-center gap-2 text-sm group-hover:underline underline-offset-2">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${DOT[i.severity]}`} />
+                    <span className="truncate">{i.name}</span>
+                  </span>
+                  <span className="block font-mono text-[11px] text-white/45 pl-4 truncate">{i.location}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
 // Чёрный лист с генпланом: слева карта, справа сводка по выбранному корпусу
 const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }) => {
   // По умолчанию открыт корпус, где больше всего аварийного оборудования
-  const initial = [...(byLocation || [])].sort((a, b) => b.critical - a.critical || b.warning - a.warning)[0]?.location || null;
-  const [selected, setSelected] = useState(initial);
+  // Ничего не выбрано — справа сводка по всему заводу
+  const [selected, setSelected] = useState(null);
   const [mode, setMode] = useState(() => (hasWebGL() ? '3d' : 'plan'));
   const [touch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
   const stat = byLocation.find(l => l.location === selected);
@@ -84,9 +152,10 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
       </div>
 
       <aside className="border-t lg:border-t-0 lg:border-l border-white/15 p-4 sm:p-5 flex flex-col" aria-live="polite">
-        {!stat && <p className="text-white/60 text-sm">Выберите корпус на карте.</p>}
+        {!stat && <PlantSummary byLocation={byLocation} snapshot={snapshot} onSelect={setSelected} onOpenProduct={onOpenProduct} />}
         {stat && (
           <>
+            <button onClick={() => setSelected(null)} className="self-start text-sm text-white/55 hover:text-white mb-2">← Весь завод</button>
             <h3 className="text-lg font-medium leading-snug">{stat.location}</h3>
             {live && (
               <p className="text-sm text-white/60 mt-1 flex flex-wrap gap-x-3">
