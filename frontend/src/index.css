@@ -37,3 +37,22 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* 3D-генплан: слой HTML-подписей поверх холста WebGL */
+.plant-3d { background: radial-gradient(ellipse at 50% 40%, #1b1b1a 0%, #000 70%); }
+.plant-labels { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+.plant-labels:active { cursor: grabbing; }
+.plant-label {
+  display: flex; align-items: center; gap: 6px;
+  font: 500 11.5px/1 Onest, system-ui, sans-serif; color: rgba(255,255,255,.78);
+  white-space: nowrap; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.plant-label .plant-count {
+  font: 500 11px/1 "JetBrains Mono", monospace; color: #fff;
+  min-width: 22px; height: 22px; padding: 0 5px; border-radius: 9999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.75); border: 1px solid rgba(255,255,255,.85);
+}
+.plant-label .plant-crit { font: 500 11px/1 "JetBrains Mono", monospace; color: #E5484D; }
+.plant-label:hover, .plant-label.is-active { color: #fff; }
+.plant-label.is-active .plant-count { background: #fff; color: #000; }
