@@ -328,6 +328,8 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
   const hostRef = useRef(null);
   const apiRef = useRef(null);          // доступ к сцене из других эффектов
   const onSelectRef = useRef(onSelect);
+  const [focused, setFocused] = useState(false);   // камера ушла от общего вида
+  const onViewRef = useRef(setFocused);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
   // Сцена создаётся один раз
@@ -365,7 +367,11 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
     controls.minDistance = 16;
     controls.maxDistance = 90;
     controls.maxPolarAngle = 1.32;     // не опускаться под землю
-    controls.enablePan = false;
+    // Сдвиг правой кнопкой (или Shift + левой): камера едет по земле, а не
+    // поднимается в небо; точка, вокруг которой вращаемся, остаётся на площадке
+    controls.enablePan = true;
+    controls.screenSpacePanning = false;
+    controls.panSpeed = 0.8;
     // Телефон: одним пальцем страница прокручивается как обычно (иначе карта
     // «захватывает» экран и до сводки не долистать), двумя — поворот и зум
     controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
@@ -374,11 +380,15 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
 
     // Камера подстраивается под форму окна: на узком экране отъезжает дальше,
     // чтобы площадка целиком влезла по ширине
-    const BASE = new THREE.Vector3(24, 27, 37).sub(controls.target);
+    const HOME = controls.target.clone();
+    const BASE = new THREE.Vector3(24, 27, 37).sub(HOME);
+    let fitK = 1;
     const fitCamera = (w, h) => {
       const aspect = w / h;
-      const k = aspect >= 1.5 ? 1 : Math.min(2.2, 1.5 / aspect * 0.92);
-      camera.position.copy(controls.target).add(BASE.clone().multiplyScalar(k));
+      fitK = aspect >= 1.5 ? 1 : Math.min(2.2, 1.5 / aspect * 0.92);
+      // Пересчитываем позицию только на общем виде: если пользователь
+      // приблизился к корпусу, поворот телефона его не выкидывает
+      if (controls.target.distanceTo(HOME) < 0.5) camera.position.copy(HOME).add(BASE.clone().multiplyScalar(fitK));
       camera.aspect = aspect;
       camera.updateProjectionMatrix();
       // На узком экране подписи короче: только числа, имя — у выбранного
@@ -476,6 +486,8 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
 
     // ---- Облёт камеры к выбранному корпусу ----
     let flight = null;
+    // Пользователь сам взялся за камеру — облёт прекращаем, не спорим с ним
+    controls.addEventListener('start', () => { flight = null; });
     const flyTo = (targetPoint, distance) => {
       const dir = camera.position.clone().sub(controls.target).normalize();
       flight = {
@@ -484,7 +496,7 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
         fromP: camera.position.clone(), toP: targetPoint.clone().add(dir.multiplyScalar(distance))
       };
     };
-    const overview = { target: controls.target.clone(), position: camera.position.clone() };
+    const overview = { get target() { return HOME.clone(); }, get position() { return HOME.clone().add(BASE.clone().multiplyScalar(fitK)); } };
 
     // Клик и наведение: отличаем клик от поворота камеры по сдвигу курсора
     const raycaster = new THREE.Raycaster();
@@ -542,6 +554,10 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
         camera.position.lerpVectors(flight.fromP, flight.toP, e);
         if (k === 1) flight = null;
       }
+      // Точку вращения не выпускаем за площадку и держим на уровне земли
+      controls.target.x = THREE.MathUtils.clamp(controls.target.x, -SITE_W / 2, SITE_W / 2);
+      controls.target.z = THREE.MathUtils.clamp(controls.target.z, -SITE_D / 2, SITE_D / 2);
+      controls.target.y = THREE.MathUtils.clamp(controls.target.y, 0, 2);
       controls.update();
       if (!reduceMotion) {
         for (const p of puffs) {
@@ -605,14 +621,26 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
       // Первый выбор — при открытии страницы: остаёмся на общем виде
       if (firstSelect) { firstSelect = false; return; }
       const item = buildings.get(key);
-      if (item) flyTo(new THREE.Vector3(item.center.x, item.top * 0.35, item.center.z), 20 + item.size * 1.8);
+      if (item && apiRef.current.follow) {
+        flyTo(new THREE.Vector3(item.center.x, 0.5, item.center.z), 24 + item.size * 2);
+        onViewRef.current(true);
+      }
     };
     const resetView = () => {
       flight = { t0: performance.now(), dur: 900, fromT: controls.target.clone(), toT: overview.target.clone(),
                  fromP: camera.position.clone(), toP: overview.position.clone() };
+      onViewRef.current(false);
     };
+    // Вернуться к общему виду: Esc или двойной щелчок по пустому месту
+    const onKeyDown = (e) => { if (e.key === 'Escape') resetView(); };
+    const onDblClick = (e) => { if (!pick(e)) resetView(); };
+    host.tabIndex = -1;
+    host.addEventListener('keydown', onKeyDown);
+    target.addEventListener('dblclick', onDblClick);
+    // Сдвиг или вращение руками тоже значит «я смотрю сам»
+    controls.addEventListener('change', () => { if (!flight) onViewRef.current(controls.target.distanceTo(overview.target) > 1.5); });
 
-    apiRef.current = { buildings, selected: null, setStats, setSelected, setLive, setNight, resetView };
+    apiRef.current = { buildings, selected: null, follow: true, setStats, setSelected, setLive, setNight, resetView };
     loop();
 
     return () => {
@@ -622,6 +650,9 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
       target.removeEventListener('pointerdown', onDown);
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('dblclick', onDblClick);
+      host.removeEventListener('keydown', onKeyDown);
+      smokeTex.dispose();
       controls.dispose();
       scene.traverse(o => {
         if (o.geometry) o.geometry.dispose();
@@ -641,14 +672,26 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
 
   const [night, setNightState] = useState(() => { const h = new Date().getHours(); return h < 7 || h >= 20; });
   const toggleNight = () => { const n = !night; setNightState(n); apiRef.current?.setNight(n); };
+  const [follow, setFollow] = useState(true);
+  const toggleFollow = () => { const f = !follow; setFollow(f); if (apiRef.current) apiRef.current.follow = f; };
 
   return (
     <div className="relative">
-      <div ref={hostRef} className="relative w-full h-[340px] sm:h-[460px] lg:h-[600px] plant-3d" />
-      <div className="absolute left-2 bottom-2 flex gap-1.5">
-        <button onClick={() => apiRef.current?.resetView()} className="plant-ctl">Весь завод</button>
+      <div ref={hostRef} className="relative w-full h-[340px] sm:h-[460px] lg:h-[600px] plant-3d outline-none" />
+      {focused && (
+        <button onClick={() => apiRef.current?.resetView()} className="plant-ctl plant-ctl-main absolute left-2 top-2">
+          ← Общий вид завода
+        </button>
+      )}
+      <div className="absolute left-2 bottom-2 flex flex-wrap gap-1.5">
+        <button onClick={toggleFollow} className="plant-ctl" aria-pressed={follow} title="Подлетать камерой к выбранному корпусу">
+          Облёт: {follow ? 'вкл' : 'выкл'}
+        </button>
         <button onClick={toggleNight} className="plant-ctl" aria-pressed={night}>{night ? 'Ночь' : 'День'}</button>
       </div>
+      <p className="hidden md:block absolute right-2 bottom-2 text-[11px] text-white/40 pointer-events-none">
+        Левая кнопка — вращать · правая — сдвигать · колесо — зум · Esc или двойной щелчок — общий вид
+      </p>
     </div>
   );
 };

@@ -70,10 +70,8 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         <p className="text-sm text-white/55 mt-1">
           В кружке — единиц оборудования в корпусе, <span className="text-alarm">красное число</span> — сколько из них в аварийном состоянии.
           <span className="hidden sm:inline"> Нажмите на корпус, чтобы увидеть, что в нём требует работ.</span>
-          {mode === '3d' && (
-            <span className="block sm:inline sm:ml-1 text-white/45">
-              {touch ? 'Двумя пальцами — повернуть и приблизить.' : 'Модель можно вращать мышью и приближать колесом.'}
-            </span>
+          {mode === '3d' && touch && (
+            <span className="block sm:inline sm:ml-1 text-white/45">Двумя пальцами — повернуть и приблизить.</span>
           )}
         </p>
         {mode === '3d' ? (

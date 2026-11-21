@@ -100,4 +100,6 @@
   border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px);
 }
 .plant-ctl:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+.plant-ctl-main { background: #fff; color: #000; border-color: #fff; font-size: 13px; padding: 8px 12px; }
+.plant-ctl-main:hover { color: #000; background: #E6E6E3; }
 .plant-3d.is-night { background: radial-gradient(ellipse at 50% 40%, #0d0f14 0%, #000 70%); }
