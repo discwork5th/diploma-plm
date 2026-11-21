@@ -22,7 +22,7 @@ const DOT = { critical: 'bg-alarm', warning: 'bg-caution', info: 'bg-slate-400',
 
 // Сводка по всему заводу, когда корпус не выбран: итоги, корпуса с аварийным
 // оборудованием (клик — выбрать корпус) и самое проблемное оборудование
-function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
+function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct, onShowInCatalog }) {
   const sum = (k) => byLocation.reduce((n, l) => n + l[k], 0);
   const hot = [...byLocation].filter(l => l.critical || l.warning)
     .sort((a, b) => b.critical - a.critical || b.warning - a.warning).slice(0, 5);
@@ -38,21 +38,27 @@ function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
       {snapshot && (
         <p className="text-sm text-white/60 mt-1">
           Сейчас: нагрузка <span className="font-mono text-white">{snapshot.totalLoad}%</span>, вибрация в норме у{' '}
-          <span className="font-mono text-white">{healthy}</span> из {running}
+          <span className="font-mono text-white">{healthy}</span> из {running} работающих
         </p>
       )}
       <dl className="grid grid-cols-2 gap-px bg-white/15 border border-white/15 mt-4 text-sm">
         {[
-          ['Единиц на площадке', sum('total'), 'text-white'],
-          ['Аварийных', sum('critical'), 'text-alarm'],
-          ['Требуют внимания', sum('warning'), 'text-caution'],
-          ['ТО до 30 дней', sum('dueTO'), 'text-white']
-        ].map(([label, value, cls]) => (
-          <div key={label} className="bg-black p-3">
-            <dt className="text-white/50 text-xs">{label}</dt>
-            <dd className={`font-mono text-2xl mt-1 ${cls}`}>{value}</dd>
-          </div>
-        ))}
+          ['Единиц на площадке', sum('total'), 'text-white', {}],
+          ['Аварийных', sum('critical'), 'text-alarm', { severity: 'critical' }],
+          ['Требуют внимания', sum('warning'), 'text-caution', { severity: 'warning' }],
+          ['ТО до 30 дней', sum('dueTO'), 'text-white', null]
+        ].map(([label, value, cls, filter]) => {
+          const inner = (
+            <>
+              <dt className="text-white/50 text-xs">{label}{filter && <span className="ml-1 text-white/30">›</span>}</dt>
+              <dd className={`font-mono text-2xl mt-1 ${cls}`}>{value}</dd>
+            </>
+          );
+          // Плитки с фильтром — кнопки: открывают каталог с полным списком
+          return filter ? (
+            <button key={label} onClick={() => onShowInCatalog(filter)} className="bg-black p-3 text-left hover:bg-white/[0.06]">{inner}</button>
+          ) : <div key={label} className="bg-black p-3">{inner}</div>;
+        })}
       </dl>
       <p className="text-xs text-white/45 mt-4 mb-1">Где больше всего проблем</p>
       <ul className="divide-y divide-white/10 border-y border-white/10">
@@ -68,7 +74,7 @@ function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
       </ul>
       {worst.length > 0 && (
         <>
-          <p className="text-xs text-white/45 mt-4 mb-1">Самое срочное</p>
+          <p className="text-xs text-white/45 mt-4 mb-1">Самое срочное — 3 из {sum('critical')} аварийных</p>
           <ul className="divide-y divide-white/10 border-y border-white/10 mb-4">
             {worst.map(i => (
               <li key={i.id}>
@@ -82,6 +88,10 @@ function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
               </li>
             ))}
           </ul>
+          <button onClick={() => onShowInCatalog({ severity: 'critical' })}
+            className="btn-secondary self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg mt-auto lg:sticky lg:bottom-0 lg:shadow-[0_-14px_14px_#000]">
+            Все аварийные ({sum('critical')}) в каталоге
+          </button>
         </>
       )}
     </>
@@ -156,7 +166,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
           иначе под картой оставалась бы пустая чёрная полоса */}
       <aside className="relative border-t lg:border-t-0 lg:border-l border-white/15" aria-live="polite">
         <div className="plant-aside lg:absolute lg:inset-0 lg:overflow-y-auto p-4 sm:p-5 flex flex-col">
-        {!stat && <PlantSummary byLocation={byLocation} snapshot={snapshot} onSelect={setSelected} onOpenProduct={onOpenProduct} />}
+        {!stat && <PlantSummary byLocation={byLocation} snapshot={snapshot} onSelect={setSelected} onOpenProduct={onOpenProduct} onShowInCatalog={onShowInCatalog} />}
         {stat && (
           <>
             <button onClick={() => setSelected(null)} className="self-start text-sm text-white/55 hover:text-white mb-2">← Весь завод</button>
@@ -203,7 +213,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
             )}
 
             <button onClick={() => onShowInCatalog({ location: stat.location })}
-              className="btn-secondary mt-auto lg:sticky lg:bottom-0 self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
+              className="btn-secondary mt-auto lg:sticky lg:bottom-0 lg:shadow-[0_-14px_14px_#000] self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
               Всё оборудование корпуса в каталоге
             </button>
           </>
