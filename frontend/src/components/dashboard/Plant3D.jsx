@@ -131,9 +131,8 @@ function makeForklift() {
 
 // Подъёмные секционные ворота: портал, «интерьер» и полотно, которое при
 // открытии сматывается вверх (сжимается к верхней кромке — точка привязки
-// полотна наверху). Если withForklift, за воротами живёт погрузчик:
-// ворота открываются только чтобы он выехал и вернулся
-function makeDoor(g, doors, w, h, x, z, withForklift) {
+// полотна наверху). Открываются, когда к ним подъезжает погрузчик
+function makeDoor(g, doors, w, h, x, z) {
   // Всё стоит перед цоколем (он выступает на 0,03), иначе нижний край проёма
   // перекрывала бы тёмная полоса цоколя
   const inside = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: interiorTexture() }));
@@ -157,14 +156,7 @@ function makeDoor(g, doors, w, h, x, z, withForklift) {
   for (let r = 0.18; r < h - 0.05; r += 0.22) ribs.push([new THREE.BoxGeometry(w * 0.92, 0.025, 0.02), 0, -r, 0.03]);
   leaf.add(merged(ribs, MAT.roof));
   g.add(leaf);
-  let forklift = null;
-  if (withForklift) {
-    forklift = makeForklift();
-    forklift.position.set(x, 0, z);
-    forklift.visible = false;
-    g.add(forklift);
-  }
-  doors.push({ leaf, x, z, open: 0, forklift });
+  doors.push({ leaf, x, z, open: 0 });
 }
 
 // Производственный корпус: стальной каркас с пилястрами по фасадам, цоколь,
@@ -202,7 +194,7 @@ function buildShop(g, b, cx, cz, doors) {
   const gates = Math.max(1, Math.floor(b.w / 3.5));
   for (let k = 0; k < gates; k++) {
     const gx = x0 + (b.w / (gates + 1)) * (k + 1);
-    makeDoor(g, doors, 1.3, 1.55, gx, z1, k === 0);   // погрузчик — у первых ворот цеха
+    makeDoor(g, doors, 1.3, 1.55, gx, z1);
     g.add(mesh(new THREE.BoxGeometry(1.6, 0.06, 0.45), MAT.metal, gx, 1.68, z1 + 0.25));
     g.add(mesh(new THREE.BoxGeometry(0.32, 0.6, 0.05), MAT.dark, gx + 1.05, 0.3, z1 + 0.04));
   }
@@ -262,7 +254,7 @@ function buildBuilding(b) {
     g.add(p);
     top = b.h + 0.7;
     // Ворота к проезду
-    for (let i = 1.2, n = 0; i < b.w - 0.5; i += 2.4, n++) makeDoor(g, doors, 1, 1.15, X(b.x + i), Z(b.y + b.d), n === 0);
+    for (let i = 1.2; i < b.w - 0.5; i += 2.4) makeDoor(g, doors, 1, 1.15, X(b.x + i), Z(b.y + b.d));
   }
   if (b.kind === 'office') {
     for (let f = 0; f < b.h - 0.5; f += 1) {
@@ -674,6 +666,48 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
     // ворота, главный проезд на запад, западный проезд на юг, проезд
     // энергетики на восток и выезд обратно через ворота
     const truckPath = makePath([[24.85, 27], [24.85, 9.25], [1.2, 9.25], [1.2, 17.65], [24.15, 17.65], [24.15, 27]], 0);
+    // ---- Погрузчики: возят поддоны между соседними корпусами ----
+    // Рейсы идут по очереди, по одному за раз, с паузой между ними: из ворот
+    // одного корпуса вдоль фасада к воротам другого. В следующем круге —
+    // обратно. Ворота открываются, только когда погрузчик рядом.
+    const doorAt = (key, k = 0) => {
+      const b = SITE.find(s => s.key === key);
+      if (b.kind === 'shop') {
+        const gates = Math.max(1, Math.floor(b.w / 3.5));
+        return [b.x + (b.w / (gates + 1)) * (k + 1), b.y + b.d];
+      }
+      return [b.x + 1.2 + 2.4 * k, b.y + b.d];
+    };
+    const ROUTES = [
+      ['Цех №2 (литейный)', 'Цех №1 (механообработка)', 0.8],
+      ['Цех №1 (механообработка)', 'Цех №3 (сборочный)', 0.8],
+      ['Склад резерва и запчастей', 'Склад готовой продукции', 0.7],
+      ['Цех №3 (сборочный)', 'Цех №4 (окрасочный)', 0.8]
+    ].map(([from, to, out]) => {
+      const [sx, sy] = doorAt(from), [tx, ty] = doorAt(to);
+      const row = Math.max(sy, ty) + out;       // проезд вдоль фасадов
+      const pts = [[sx, sy - 0.4], [sx, row], [tx, row], [tx, ty - 0.4]];
+      const lift = makeForklift();
+      lift.visible = false;
+      scene.add(lift);
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      return { pts, back: [...pts].reverse(), lift, len };
+    });
+    const LIFT_SPEED = 1.1, WAIT = 1.2, GAP = 9;   // клеток в секунду, ожидание у ворот, пауза между рейсами
+    const tripTime = (r) => WAIT + r.len / LIFT_SPEED + WAIT;
+    const cycleTime = ROUTES.reduce((sum, r) => sum + tripTime(r) + GAP, 0);
+    const pointAt = (pts, d) => {
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+        const seg = Math.hypot(bx - ax, by - ay);
+        if (d <= seg) return { x: ax + (bx - ax) * d / seg, y: ay + (by - ay) * d / seg, dx: bx - ax, dy: by - ay };
+        d -= seg;
+      }
+      const [ax, ay] = pts[pts.length - 2], [bx, by] = pts[pts.length - 1];
+      return { x: bx, y: by, dx: bx - ax, dy: by - ay };
+    };
+
     const wagon = mesh(new THREE.BoxGeometry(2.2, 0.75, 0.6), MAT.metal, 0, 0, 0);
     scene.add(wagon);
     const railPath = makePath(RAIL, 0.5);
@@ -780,24 +814,33 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
         const tp = truckPath(t / 55);
         truck.position.copy(tp.pos);
         truck.rotation.y = tp.heading;
-        // Ворота открываются только ради погрузчика: открылись → он выехал,
-        // постоял с грузом → вернулся → ворота закрылись. У каждого склада и
-        // цеха свой момент, чтобы не всё одновременно.
-        //   0–1,2 с открываются · 1,2–3,4 выезд · 3,4–6 стоит · 6–8,2 заезд · дальше закрываются
+        // Погрузчики: какой рейс сейчас идёт и где на нём погрузчик
+        const lifts = [];
+        {
+          const cycle = Math.floor(t / cycleTime);
+          let c = t % cycleTime;
+          for (const r of ROUTES) {
+            const T = tripTime(r);
+            r.lift.visible = false;
+            if (c >= 0 && c < T) {
+              const pts = cycle % 2 ? r.back : r.pts;
+              const d = Math.min(r.len, Math.max(0, (c - WAIT) * LIFT_SPEED));
+              const p = pointAt(pts, d);
+              const moving = c > WAIT * 0.6 && c < T - WAIT * 0.5;   // до этого — ждёт ворота внутри, после — уже заехал
+              r.lift.visible = moving;
+              r.lift.position.set(X(p.x), 0, Z(p.y));
+              r.lift.rotation.y = Math.atan2(p.dx, p.dy);
+              lifts.push([X(p.x), Z(p.y)]);
+            }
+            c -= T + GAP;
+          }
+        }
         const dt = Math.min(0.1, t - (loop.last ?? t));
         loop.last = t;
-        let n = 0;
         for (const item of buildings.values()) {
           for (const d of item.doors) {
-            if (!d.forklift) { d.leaf.scale.y = 1; continue; }
-            const c = (t + n * 7.3) % 42;
-            n++;
-            const u = c < 1.2 ? 0 : c < 3.4 ? (c - 1.2) / 2.2 : c < 6 ? 1 : c < 8.2 ? 1 - (c - 6) / 2.2 : 0;
-            const ease = u * u * (3 - 2 * u);
-            d.forklift.visible = u > 0;
-            d.forklift.position.z = d.z - 0.3 + ease * 1.25;
-            const target = c < 8.6 ? 1 : 0;
-            d.open += (target - d.open) * Math.min(1, dt * 3);
+            const near = lifts.some(([lx, lz]) => Math.hypot(lx - d.x, lz - d.z) < 1.4);
+            d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt * 3);
             d.leaf.scale.y = 1 - 0.9 * d.open;
           }
         }
