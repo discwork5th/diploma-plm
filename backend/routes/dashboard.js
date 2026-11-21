@@ -61,7 +61,10 @@ router.get('/dashboard/summary', (req, res) => {
     // Не самый дешёвый запрос, но для прототипа на десятках изделий — норм.
     // В промышленной системе на тысячах записей это вынесли бы в фоновый процесс
     // с кешированием результатов.
-    const allProducts = db.prepare('SELECT id, name, type, serial_number AS serialNumber FROM products').all();
+    const allProducts = db.prepare(`
+      SELECT p.id, p.name, p.type, p.serial_number AS serialNumber, p.location, p.current_stage_id AS stageId,
+             CAST(julianday(m.next_to_date) - julianday('now') AS INTEGER) AS daysUntilTO
+      FROM products p LEFT JOIN maintenance m ON m.product_id = p.id`).all();
     const evaluations = allProducts.map(p => {
       const ev = evaluateProduct(p.id);
       return {
@@ -91,8 +94,35 @@ router.get('/dashboard/summary', (req, res) => {
       .map(e => ({ ...e.product, triggeredCount: e.triggeredCount }))
       .slice(0, 10);
 
+    // ---- Сводка по местам установки: для карты предприятия ----
+    // По каждому корпусу: сколько оборудования, сколько в плохом состоянии,
+    // у скольких ТО в ближайшие 30 дней, и самые проблемные единицы
+    const RANK = { critical: 3, warning: 2, info: 1, normal: 0 };
+    const locations = new Map();
+    for (const e of evaluations) {
+      const loc = e.product.location;
+      if (!loc) continue;
+      if (!locations.has(loc)) locations.set(loc, { location: loc, total: 0, critical: 0, warning: 0, dueTO: 0, items: [] });
+      const L = locations.get(loc);
+      L.total++;
+      if (e.severity === 'critical') L.critical++;
+      if (e.severity === 'warning') L.warning++;
+      const active = ['operation', 'maintenance'].includes(e.product.stageId);
+      if (active && e.product.daysUntilTO !== null && e.product.daysUntilTO <= 30) L.dueTO++;
+      L.items.push({ id: e.product.id, name: e.product.name, serialNumber: e.product.serialNumber,
+                     severity: e.severity, daysUntilTO: active ? e.product.daysUntilTO : null });
+    }
+    const byLocation = [...locations.values()].map(L => ({
+      ...L,
+      items: L.items
+        .filter(i => i.severity === 'critical' || i.severity === 'warning')
+        .sort((a, b) => RANK[b.severity] - RANK[a.severity] || (a.daysUntilTO ?? 999) - (b.daysUntilTO ?? 999))
+        .slice(0, 6)
+    }));
+
     res.json({
       totalProducts,
+      byLocation,
       byStage,
       byType,
       bySeverity,

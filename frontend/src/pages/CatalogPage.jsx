@@ -1,15 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Clock, Download, Edit, Filter, MapPin, Package, Plus, Search, Trash2 } from 'lucide-react';
 import ProductImage from '../components/common/ProductImage';
 
 // Каталог изделий: поиск, фильтр по этапу ЖЦ, карточки изделий
-const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen, onEdit, onDelete }) => {
+const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen, onEdit, onDelete, locationRequest }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
   // Карточек в парке сотни: показываем порциями, чтобы страница не тормозила
   const PAGE = 30;
-  const [shown, setShown] = useState(PAGE);
+  // Сколько карточек показано; при смене поиска или фильтров снова первые PAGE.
+  // Сброс считается при отрисовке, а не в эффекте: так не бывает лишнего кадра
+  // со старым числом карточек
+  const filterKey = `${searchTerm}|${filterStage}|${filterLocation}`;
+  const [paging, setPaging] = useState({ key: filterKey, shown: PAGE });
+  const shown = paging.key === filterKey ? paging.shown : PAGE;
+  const setShown = (n) => setPaging({ key: filterKey, shown: n });
+
+  // Переход с генплана: показать оборудование выбранного корпуса
+  const [seenRequest, setSeenRequest] = useState(null);
+  if (locationRequest && locationRequest !== seenRequest) {
+    setSeenRequest(locationRequest);
+    setFilterLocation(locationRequest.location);
+    setFilterStage('all');
+    setSearchTerm('');
+  }
 
   const locations = useMemo(
     () => [...new Set(products.map(p => p.location).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru')),
@@ -28,7 +43,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
     });
   }, [products, searchTerm, filterStage, filterLocation]);
 
-  useEffect(() => setShown(PAGE), [searchTerm, filterStage, filterLocation]);
+
 
   return (
     <div className="space-y-4">
@@ -112,7 +127,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                 </div>
                 <div className="space-y-1 text-sm text-slate-600 mb-4 flex-1">
                   <p>{product.type || '—'}</p>
-                  <p className="font-display text-slate-800 tracking-wide">
+                  <p className="font-mono text-[13px] text-slate-800">
                     Зав. № {product.serialNumber || '—'}
                   </p>
                   <p className="flex items-center gap-2">

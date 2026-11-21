@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Package, Factory, Clock, CheckCircle, AlertCircle, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 import { api } from '../../api/client';
 import { BarChart, PieChart } from './Charts';
 import SummaryTile from './SummaryTile';
+import PlantOverview from './PlantOverview';
 
 // ============================================================================
 // Дашборд — стартовый экран со сводной статистикой
@@ -13,16 +14,17 @@ import SummaryTile from './SummaryTile';
 // ============================================================================
 
 // Палитра для диаграмм
+// Этапы — оттенки туши: цвет в интерфейсе оставлен только для состояний
 const STAGE_COLORS = {
-  blue:   '#45648D',
-  purple: '#7B6E93',
-  green:  '#4F8A64',
-  yellow: '#B8913C',
-  red:    '#A8483A',
-  gray:   '#9AA2AA',
+  blue:   '#C9C9C6',
+  purple: '#9E9E9A',
+  gray:   '#74746F',
+  green:  '#151514',
+  yellow: '#55554F',
+  red:    '#3A3A36',
 };
 
-const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
+const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,7 +83,7 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
   const typeBarData = data.byType.map(t => ({
     label: t.type,
     value: t.count,
-    color: '#535B63'
+    color: '#151514'
   }));
 
   const inOperation = data.byStage.find(s => s.id === 'operation')?.count || 0;
@@ -106,40 +108,23 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
         </button>
       </div>
 
-      {/* Верхний ряд — 4 плитки */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryTile
-          label="Всего изделий в системе"
-          value={data.totalProducts}
-          icon={Package}
-          color="bg-slate-700"
-          onClick={onGoCatalog}
-        />
-        <SummaryTile
-          label="В эксплуатации"
-          value={inOperation}
-          icon={Factory}
-          color="bg-[#4F8A64]"
-        />
-        <SummaryTile
-          label="Требуют внимания"
-          value={warningCount}
-          icon={AlertTriangle}
-          color="bg-[#B8913C]"
-        />
-        <SummaryTile
-          label="Критическое состояние"
-          value={data.bySeverity.critical}
-          icon={AlertCircle}
-          color="bg-[#A8483A]"
-        />
+      {data.byLocation?.length > 0 && (
+        <PlantOverview byLocation={data.byLocation} onOpenProduct={onOpenProduct} onShowInCatalog={onShowInCatalog} />
+      )}
+
+      {/* Показатели: ячейки одной таблицы, разделённые тонкими линиями */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-300 border border-slate-300 rounded-xl overflow-hidden">
+        <SummaryTile label="Всего единиц оборудования" value={data.totalProducts} onClick={onGoCatalog} />
+        <SummaryTile label="В эксплуатации" value={inOperation} />
+        <SummaryTile label="Требуют внимания" value={warningCount} tone="text-caution" />
+        <SummaryTile label="Аварийное состояние" value={data.bySeverity.critical} tone="text-alarm" />
       </div>
 
       {/* Диаграммы */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Круговая — этапы ЖЦ */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-          <h3 className="font-bold text-slate-800 mb-4">Распределение по этапам ЖЦ</h3>
+        <div className="bg-white rounded-xl border border-slate-300 p-5">
+          <h3 className="font-medium text-slate-900 mb-4">Распределение по этапам ЖЦ</h3>
           {stagePieData.length > 0 ? (
             <div className="flex items-center gap-6">
               <PieChart data={stagePieData} size={180} />
@@ -159,8 +144,8 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
         </div>
 
         {/* Столбчатая — типы оборудования */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-          <h3 className="font-bold text-slate-800 mb-4">Распределение по типам оборудования</h3>
+        <div className="bg-white rounded-xl border border-slate-300 p-5">
+          <h3 className="font-medium text-slate-900 mb-4">Распределение по типам оборудования</h3>
           <BarChart data={typeBarData} />
         </div>
       </div>
@@ -168,10 +153,10 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
       {/* Списки изделий */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Критические */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-xl border border-slate-300 p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="w-5 h-5 text-red-600" />
-            <h3 className="font-bold text-slate-800">Требуют немедленного внимания</h3>
+            <h3 className="font-medium text-slate-900">Требуют немедленного внимания</h3>
           </div>
           {data.criticalProducts.length === 0 && data.warningProducts.length === 0 ? (
             <div className="text-center py-8">
@@ -209,10 +194,10 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
         </div>
 
         {/* Ближайшие ТО */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-xl border border-slate-300 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-5 h-5 text-blue-600" />
-            <h3 className="font-bold text-slate-800">Ближайшие ТО (30 дней)</h3>
+            <h3 className="font-medium text-slate-900">Ближайшие ТО (30 дней)</h3>
           </div>
           {data.upcomingTO.length === 0 ? (
             <div className="text-center py-8">

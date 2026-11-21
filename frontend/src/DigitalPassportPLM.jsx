@@ -45,6 +45,8 @@ const DigitalPassportPLM = () => {
   // причём на то же место прокрутки
   const [returnTo, setReturnTo] = useState('catalog');
   const scrollPositions = useRef({});
+  // Фильтр каталога по месту, заданный извне (например, кликом по корпусу на генплане)
+  const [catalogLocation, setCatalogLocation] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
 
   const [saving, setSaving] = useState(false);
@@ -293,7 +295,11 @@ const DigitalPassportPLM = () => {
         )}
 
         {ready && view === 'dashboard' && (
-          <Dashboard onOpenProduct={openProduct} onGoCatalog={() => setView('catalog')} />
+          <Dashboard
+            onOpenProduct={openProduct}
+            onGoCatalog={() => navigate('catalog')}
+            onShowInCatalog={(location) => { setCatalogLocation({ location, at: Date.now() }); navigate('catalog'); }}
+          />
         )}
 
         {/* Каталог и помощник не размонтируются при уходе в карточку изделия:
@@ -309,6 +315,7 @@ const DigitalPassportPLM = () => {
             onOpen={(product) => openProduct(product.id)}
             onEdit={editProduct}
             onDelete={deleteProduct}
+            locationRequest={catalogLocation}
           />
           </div>
         )}

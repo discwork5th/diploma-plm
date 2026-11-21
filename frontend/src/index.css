@@ -4,41 +4,29 @@
 
 @layer base {
   body {
-    @apply bg-slate-100 text-slate-800 font-sans antialiased;
+    @apply bg-slate-100 text-slate-900 font-sans antialiased;
   }
-  /* Заголовки — узкий технический гротеск, как надписи на чертежах и табличках */
   h1, h2, h3 {
-    @apply font-display tracking-[-0.005em];
+    @apply tracking-[-0.015em];
   }
-  /* Заметный фокус для клавиатуры */
   :focus-visible {
-    outline: 2px solid theme('colors.blue.500');
+    outline: 2px solid #000;
     outline-offset: 2px;
   }
 }
 
 @layer components {
-  /* Шлифованная сталь: тонкие горизонтальные риски поверх холодного градиента.
-     Используется в одном месте — в шапке, чтобы не превращать фактуру в обои. */
-  .brushed-steel {
-    background-color: #C9CFD4;
-    background-image:
-      repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 1px, rgba(0,0,0,0.035) 1px 2px, transparent 2px 4px),
-      linear-gradient(180deg, #DDE2E6 0%, #C3C9CF 55%, #B4BBC2 100%);
-  }
-
-  /* Шильдик изделия: пластина с заклёпками по углам */
+  /* Шильдик изделия: светлая пластина с заклёпками по углам */
   .nameplate {
-    @apply relative border border-slate-300 bg-slate-50;
-    background-image: linear-gradient(180deg, #F7F8F9, #E9ECEE);
+    @apply relative border border-slate-900 bg-white;
   }
   .nameplate::before, .nameplate::after,
   .nameplate > .rivets::before, .nameplate > .rivets::after {
     content: '';
     position: absolute;
-    width: 7px; height: 7px; border-radius: 9999px;
-    background: radial-gradient(circle at 35% 35%, #FFFFFF, #9AA2AA 70%);
-    box-shadow: 0 0 0 1px rgba(28,32,37,0.18);
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 0 0 1px #151514;
   }
   .nameplate::before { top: 7px; left: 7px; }
   .nameplate::after { top: 7px; right: 7px; }

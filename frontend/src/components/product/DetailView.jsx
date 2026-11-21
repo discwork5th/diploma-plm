@@ -60,10 +60,10 @@ const DetailView = ({
           {/* Шильдик: то, что выбито на табличке самого агрегата */}
           <div className="nameplate rounded-lg flex-1 min-w-[300px] max-w-xl px-7 py-5">
             <span className="rivets" />
-            <p className="font-display font-semibold text-slate-700 text-sm mb-3">{selectedProduct.manufacturer || 'Изготовитель не указан'}</p>
-            <dl className="grid grid-cols-[auto,1fr] gap-x-6 gap-y-1.5 font-display">
+            <p className="font-medium text-slate-700 text-sm mb-3">{selectedProduct.manufacturer || 'Изготовитель не указан'}</p>
+            <dl className="grid grid-cols-[auto,1fr] gap-x-6 gap-y-1.5">
               <dt className="text-slate-500">Заводской №</dt>
-              <dd className="text-slate-900 font-semibold text-lg tracking-wide leading-6">{selectedProduct.serialNumber || '—'}</dd>
+              <dd className="text-slate-900 font-mono text-lg leading-6">{selectedProduct.serialNumber || '—'}</dd>
               <dt className="text-slate-500">Изготовлено</dt>
               <dd className="text-slate-900 font-medium">{selectedProduct.manufactureDate || '—'}</dd>
               <dt className="text-slate-500">Введено в работу</dt>
