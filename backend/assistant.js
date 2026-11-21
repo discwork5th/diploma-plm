@@ -145,7 +145,8 @@ function llmConfig() {
 // У OpenRouter то же самое делается его собственным параметром reasoning.
 function providerExtras(cfg) {
   if (/deepseek\.com/.test(cfg.baseUrl)) return { thinking: { type: 'disabled' } };
-  if (/openrouter\.ai/.test(cfg.baseUrl)) return { reasoning: { enabled: false } };
+  // RouterAI (routerai.ru) повторяет формат OpenRouter, параметр тот же
+  if (/openrouter\.ai|routerai\.ru/.test(cfg.baseUrl)) return { reasoning: { enabled: false } };
   return {};
 }
 
