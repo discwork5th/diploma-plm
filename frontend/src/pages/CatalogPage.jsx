@@ -1,22 +1,34 @@
-import { useMemo, useState } from 'react';
-import { Clock, Download, Edit, Filter, Package, Plus, Search, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Clock, Download, Edit, Filter, MapPin, Package, Plus, Search, Trash2 } from 'lucide-react';
 import ProductImage from '../components/common/ProductImage';
 
 // Каталог изделий: поиск, фильтр по этапу ЖЦ, карточки изделий
 const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen, onEdit, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('all');
+  const [filterLocation, setFilterLocation] = useState('all');
+  // Карточек в парке сотни: показываем порциями, чтобы страница не тормозила
+  const PAGE = 30;
+  const [shown, setShown] = useState(PAGE);
+
+  const locations = useMemo(
+    () => [...new Set(products.map(p => p.location).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru')),
+    [products]
+  );
 
   const filteredProducts = useMemo(() => {
     const query = searchTerm.toLowerCase();
     return products.filter(p => {
       const matchesSearch =
         !query ||
-        [p.name, p.type, p.manufacturer, p.serialNumber].filter(Boolean).some(field => field.toLowerCase().includes(query));
+        [p.name, p.type, p.manufacturer, p.serialNumber, p.location].filter(Boolean).some(field => field.toLowerCase().includes(query));
       const matchesFilter = filterStage === 'all' || p.currentStage === filterStage;
-      return matchesSearch && matchesFilter;
+      const matchesLocation = filterLocation === 'all' || p.location === filterLocation;
+      return matchesSearch && matchesFilter && matchesLocation;
     });
-  }, [products, searchTerm, filterStage]);
+  }, [products, searchTerm, filterStage, filterLocation]);
+
+  useEffect(() => setShown(PAGE), [searchTerm, filterStage, filterLocation]);
 
   return (
     <div className="space-y-4">
@@ -27,7 +39,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Поиск по названию, типу, производителю или S/N..."
+                placeholder="Поиск по названию, типу, месту установки или S/N..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -46,6 +58,17 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                     {stage.name}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <select
+                value={filterLocation}
+                onChange={e => setFilterLocation(e.target.value)}
+                className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white max-w-xs"
+              >
+                <option value="all">Все места</option>
+                {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
               </select>
             </div>
           </div>
@@ -68,8 +91,12 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
         </div>
       </div>
 
+      <p className="text-sm text-slate-500 px-1">
+        Найдено: {filteredProducts.length}{filteredProducts.length > shown ? `, показано ${shown}` : ''}
+      </p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProducts.map(product => {
+        {filteredProducts.slice(0, shown).map(product => {
           const stageStyle = getStageStyle(product.currentStage);
           const stageName = stages.find(s => s.id === product.currentStage)?.name;
           return (
@@ -90,6 +117,10 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                   </p>
                   <p>
                     <span className="font-medium">S/N:</span> {product.serialNumber || '—'}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{product.location || '—'}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
@@ -121,6 +152,15 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
           );
         })}
       </div>
+
+      {filteredProducts.length > shown && (
+        <div className="text-center">
+          <button onClick={() => setShown(shown + PAGE)}
+            className="px-6 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">
+            Показать ещё
+          </button>
+        </div>
+      )}
 
       {filteredProducts.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">

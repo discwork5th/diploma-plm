@@ -9,6 +9,7 @@ const EMPTY_PRODUCT = {
   type: '',
   manufacturer: '',
   serialNumber: '',
+  location: '',
   manufactureDate: '',
   commissioningDate: '',
   currentStage: 'design',

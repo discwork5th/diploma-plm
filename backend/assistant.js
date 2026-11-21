@@ -91,7 +91,7 @@ function expandQuery(text) {
 function loadCatalog() {
   const products = db.prepare(`
     SELECT p.id, p.name, p.type, p.manufacturer, p.serial_number AS serialNumber,
-           p.current_stage_id AS stageId, s.name AS stageName, p.image_path AS image
+           p.current_stage_id AS stageId, s.name AS stageName, p.image_path AS image, p.location
     FROM products p JOIN lifecycle_stages s ON s.id = p.current_stage_id
   `).all();
   const specsStmt = db.prepare('SELECT key, value FROM specifications WHERE product_id = ? ORDER BY order_num, id');
@@ -99,7 +99,8 @@ function loadCatalog() {
   return products.map(p => {
     const specs = Object.fromEntries(specsStmt.all(p.id).map(r => [r.key, r.value]));
     const evaluation = evaluateProduct(p.id);
-    return { ...p, specs, severity: evaluation ? evaluation.overallSeverity : 'normal' };
+    return { ...p, specs, severity: evaluation ? evaluation.overallSeverity : 'normal',
+             triggered: evaluation ? evaluation.triggeredRules.map(r => r.name) : [] };
   });
 }
 
@@ -260,4 +261,4 @@ function status() {
   return { llm: Boolean(cfg), model: cfg ? cfg.model : null };
 }
 
-module.exports = { recommend, status, searchCatalog, loadCatalog };
+module.exports = { recommend, status, searchCatalog, loadCatalog, llmConfig, SEVERITY_LABELS };

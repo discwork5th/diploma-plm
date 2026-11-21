@@ -77,6 +77,12 @@ export const api = {
     body: JSON.stringify({ query })
   }),
 
+  chatAssistant: (messages) => apiRequest('/api/assistant/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages })
+  }),
+
   // Дашборд
   getDashboardSummary: () => apiRequest('/api/dashboard/summary'),
 };

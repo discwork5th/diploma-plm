@@ -7,4 +7,5 @@ export const STAGE_STYLES = {
   green:  { badge: 'bg-green-100 text-green-700',   dot: 'bg-green-500' },
   yellow: { badge: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
   red:    { badge: 'bg-red-100 text-red-700',       dot: 'bg-red-500' },
+  gray:   { badge: 'bg-slate-200 text-slate-700',   dot: 'bg-slate-500' },
 };

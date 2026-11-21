@@ -91,6 +91,16 @@ const ProductEditor = ({
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Место установки</label>
+            <input
+              type="text"
+              value={editedProduct.location || ''}
+              onChange={(e) => setEditedProduct({ ...editedProduct, location: e.target.value })}
+              placeholder="Цех, участок или склад"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Дата производства</label>
             <input
               type="date"

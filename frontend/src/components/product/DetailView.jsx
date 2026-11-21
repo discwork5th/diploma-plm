@@ -66,6 +66,10 @@ const DetailView = ({
                 <p className="text-sm text-slate-500">Дата производства</p>
                 <p className="font-semibold text-slate-800">{selectedProduct.manufactureDate || '—'}</p>
               </div>
+              <div className="col-span-2">
+                <p className="text-sm text-slate-500">Место установки</p>
+                <p className="font-semibold text-slate-800">{selectedProduct.location || '—'}</p>
+              </div>
             </div>
           </div>
         </div>

@@ -6,9 +6,10 @@
 INSERT OR IGNORE INTO lifecycle_stages (id, name, color, order_num) VALUES
   ('design',      'Проектирование', 'blue',   1),
   ('production',  'Производство',   'purple', 2),
-  ('operation',   'Эксплуатация',   'green',  3),
-  ('maintenance', 'Обслуживание',   'yellow', 4),
-  ('disposal',    'Утилизация',     'red',    5);
+  ('storage',     'Резерв (склад)', 'gray',   3),
+  ('operation',   'Эксплуатация',   'green',  4),
+  ('maintenance', 'Обслуживание',   'yellow', 5),
+  ('disposal',    'Утилизация',     'red',    6);
 
 -- Демо-каталог оборудования заливается из demo-data.js:
 -- там даты считаются от текущего дня, чтобы демо не «устаревало».

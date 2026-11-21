@@ -71,6 +71,7 @@ function loadProductWithRelations(productId) {
     commissioningDate: product.commissioning_date,
     currentStage: product.current_stage_id,
     image: product.image_path || '',
+    location: product.location || '',
     specifications,
     lifecycleHistory,
     documents,
@@ -87,7 +88,7 @@ router.get('/', (req, res) => {
     const rows = db
       .prepare(`SELECT id, name, type, manufacturer, serial_number as serialNumber,
                        manufacture_date as manufactureDate,
-                       current_stage_id as currentStage, image_path as image
+                       current_stage_id as currentStage, image_path as image, location
                 FROM products ORDER BY id`)
       .all();
     res.json(rows);
@@ -125,8 +126,8 @@ router.post('/', (req, res) => {
 
   const insertProduct = db.prepare(`
     INSERT INTO products (name, type, manufacturer, serial_number,
-                          manufacture_date, commissioning_date, current_stage_id, image_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                          manufacture_date, commissioning_date, current_stage_id, image_path, location)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertSpec = db.prepare(`
     INSERT INTO specifications (product_id, key, value, order_num) VALUES (?, ?, ?, ?)
@@ -145,7 +146,7 @@ router.post('/', (req, res) => {
     const info = insertProduct.run(
       p.name, p.type, p.manufacturer || null, p.serialNumber || null,
       p.manufactureDate || null, p.commissioningDate || null,
-      p.currentStage || 'design', p.image || null
+      p.currentStage || 'design', p.image || null, p.location || null
     );
     const newId = info.lastInsertRowid;
 
@@ -205,7 +206,7 @@ router.put('/:id', (req, res) => {
     UPDATE products SET
       name = ?, type = ?, manufacturer = ?, serial_number = ?,
       manufacture_date = ?, commissioning_date = ?, current_stage_id = ?,
-      image_path = ?, updated_at = datetime('now')
+      image_path = ?, location = ?, updated_at = datetime('now')
     WHERE id = ?
   `);
   const delSpecs = db.prepare('DELETE FROM specifications WHERE product_id = ?');
@@ -228,7 +229,7 @@ router.put('/:id', (req, res) => {
     const info = updateProduct.run(
       p.name, p.type, p.manufacturer || null, p.serialNumber || null,
       p.manufactureDate || null, p.commissioningDate || null,
-      p.currentStage || 'design', p.image || null, id
+      p.currentStage || 'design', p.image || null, p.location || null, id
     );
     if (info.changes === 0) {
       throw new Error('Изделие не найдено');

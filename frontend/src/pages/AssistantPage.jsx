@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles, Send, RefreshCw, Info, HelpCircle, ArrowRight, Search } from 'lucide-react';
 import { api } from '../api/client';
 import ProductImage from '../components/common/ProductImage';
+import MechanicChat from '../components/assistant/MechanicChat';
 
 // Примеры запросов: подставляются в поле одним кликом
 const EXAMPLES = [
@@ -67,18 +68,51 @@ const RecommendationCard = ({ item, getStageStyle, onOpen }) => {
   );
 };
 
-// Раздел ИИ-подбора: пользователь описывает задачу словами, система ищет
-// подходящее оборудование в каталоге и (если подключена модель) объясняет выбор
+// Раздел ИИ: две вкладки.
+//   «Помощник механика» — модель сама вызывает инструменты (запросы к базе).
+//   «Подбор по описанию» — схема RAG: поиск кандидатов + объяснение моделью.
 const AssistantPage = ({ getStageStyle, onOpenProduct }) => {
-  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState('chat');
   const [status, setStatus] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     api.getAssistantStatus().then(setStatus).catch(() => setStatus({ llm: false }));
   }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+          {[['chat', 'Помощник механика'], ['recommend', 'Подбор по описанию']].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {status && (
+          <span className={`text-xs font-medium px-3 py-1 rounded-full border ${
+            status.llm ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+          }`}>
+            {status.llm ? `Модель: ${status.model}` : 'Модель не подключена: только поиск'}
+          </span>
+        )}
+      </div>
+      {tab === 'chat'
+        ? <MechanicChat status={status} onOpenProduct={onOpenProduct} />
+        : <RecommendPanel getStageStyle={getStageStyle} onOpenProduct={onOpenProduct} />}
+    </div>
+  );
+};
+
+// Подбор по описанию задачи: система ищет подходящее оборудование в парке
+// и (если подключена модель) объясняет выбор
+const RecommendPanel = ({ getStageStyle, onOpenProduct }) => {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
 
   const submit = async (text = query) => {
     const q = text.trim();
@@ -105,19 +139,12 @@ const AssistantPage = ({ getStageStyle, onOpenProduct }) => {
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-blue-600" /> ИИ-подбор оборудования
+              <Sparkles className="w-6 h-6 text-blue-600" /> Подбор по описанию задачи
             </h2>
             <p className="text-slate-500 mt-1">
               Опишите задачу своими словами: что нужно перекачивать, перемещать или приводить в движение и с какими параметрами.
             </p>
           </div>
-          {status && (
-            <span className={`text-xs font-medium px-3 py-1 rounded-full border ${
-              status.llm ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-600 border-slate-200'
-            }`}>
-              {status.llm ? `Модель: ${status.model}` : 'Модель не подключена: только поиск'}
-            </span>
-          )}
         </div>
 
         <form

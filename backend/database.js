@@ -43,6 +43,23 @@ if (!tableExists) {
   console.log('[database] БД успешно инициализирована.');
 } else {
   console.log('[database] БД найдена, используем существующую.');
+  migrate();
+}
+
+// Обновление базы, созданной старой версией: новые столбцы и справочники.
+// Каждый шаг можно выполнять повторно — он ничего не ломает.
+function migrate() {
+  const columns = db.prepare('PRAGMA table_info(products)').all().map(c => c.name);
+  if (!columns.includes('location')) {
+    db.exec('ALTER TABLE products ADD COLUMN location TEXT');
+    console.log('[database] Добавлен столбец products.location');
+  }
+  // Справочник этапов: INSERT OR IGNORE добавит новый этап «Резерв», а UPDATE
+  // выставит порядок, если этапы уже были
+  db.exec(fs.readFileSync(SEED_FILE, 'utf8'));
+  const order = { design: 1, production: 2, storage: 3, operation: 4, maintenance: 5, disposal: 6 };
+  const upd = db.prepare('UPDATE lifecycle_stages SET order_num = ? WHERE id = ?');
+  for (const [id, n] of Object.entries(order)) upd.run(n, id);
 }
 
 module.exports = db;

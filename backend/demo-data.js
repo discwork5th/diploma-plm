@@ -10,6 +10,8 @@
 // состоянии.
 // ============================================================================
 
+const { generateFleet, LOC } = require('./demo-fleet');
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Дата через `days` дней от сегодня (отрицательное число = в прошлом)
@@ -229,12 +231,20 @@ const PRODUCTS = [
   }
 ];
 
-// Залить демо-каталог в пустую базу
+// Место установки для изделий, описанных вручную (у сгенерированных оно своё)
+const LOCATION_BY_SERIAL = {
+  'К100-2025-0312': LOC.water, 'ЭЦВ6-2024-1184': LOC.well, 'ВК30-2023-0077': LOC.air,
+  'АИР132-2024-0847': LOC.machining, 'ПЧ15-2025-0423': LOC.water, 'Ч100-2021-0158': LOC.assembly,
+  'ЛК500-2021-0009': LOC.warehouse, 'ВР80-2026-0031': null, 'ТПР02-2026-0002': null, 'НД25-2015-0140': LOC.treatment
+};
+
+// Залить демо-каталог в пустую базу: десять подробно описанных изделий
+// и сгенерированный парк предприятия (см. demo-fleet.js)
 function seedDemoData(db) {
   const insertProduct = db.prepare(`
     INSERT INTO products (name, type, manufacturer, serial_number, manufacture_date,
-                          commissioning_date, current_stage_id, image_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                          commissioning_date, current_stage_id, image_path, location)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertSpec = db.prepare('INSERT INTO specifications (product_id, key, value, order_num) VALUES (?, ?, ?, ?)');
   const insertEvent = db.prepare(`
@@ -245,13 +255,18 @@ function seedDemoData(db) {
     VALUES (?, ?, ?, ?, ?)
   `);
 
+  const all = [
+    ...PRODUCTS.map(p => ({ ...p, location: LOCATION_BY_SERIAL[p.serial] ?? null })),
+    ...generateFleet()
+  ];
+
   const seed = db.transaction(() => {
-    for (const p of PRODUCTS) {
+    for (const p of all) {
       const { lastInsertRowid: id } = insertProduct.run(
         p.name, p.type, p.manufacturer, p.serial,
         p.made === null ? null : dayOffset(p.made),
         p.commission === null ? null : dayOffset(p.commission),
-        p.stage, p.image
+        p.stage, p.image, p.location
       );
 
       Object.entries(p.specs).forEach(([key, value], i) => insertSpec.run(id, key, value, i + 1));
@@ -262,13 +277,13 @@ function seedDemoData(db) {
 
       if (p.maintenance) {
         const m = p.maintenance;
-        insertMaintenance.run(id, dayOffset(m.nextTO), m.hours, -p.commission, m.remaining);
+        insertMaintenance.run(id, dayOffset(m.nextTO), m.hours, p.commission === null ? null : -p.commission, m.remaining);
       }
     }
   });
 
   seed();
-  console.log(`[database] Залит демо-каталог: ${PRODUCTS.length} изделий.`);
+  console.log(`[database] Залит демо-каталог: ${all.length} изделий.`);
 }
 
 module.exports = { seedDemoData };

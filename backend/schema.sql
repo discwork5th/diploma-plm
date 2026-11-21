@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS products (
   current_stage_id   TEXT    NOT NULL DEFAULT 'design'
                      REFERENCES lifecycle_stages(id),
   image_path         TEXT,                       -- относительный путь к фото
+  location           TEXT,                       -- место установки: цех, участок, склад
   created_at         TEXT    DEFAULT (datetime('now')),
   updated_at         TEXT    DEFAULT (datetime('now'))
 );
@@ -116,6 +117,7 @@ CREATE TABLE IF NOT EXISTS expert_rules (
 -- Индексы для ускорения частых запросов
 -- ----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_products_stage          ON products(current_stage_id);
+CREATE INDEX IF NOT EXISTS idx_products_location       ON products(location);
 CREATE INDEX IF NOT EXISTS idx_specs_product           ON specifications(product_id);
 CREATE INDEX IF NOT EXISTS idx_events_product          ON lifecycle_events(product_id);
 CREATE INDEX IF NOT EXISTS idx_documents_product       ON documents(product_id);
