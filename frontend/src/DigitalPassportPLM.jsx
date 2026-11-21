@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { FileText, Clock, Wrench, Brain, Upload, RefreshCw } from 'lucide-react';
 import { api } from './api/client';
 import { STAGE_STYLES } from './constants/stages';
@@ -41,6 +41,10 @@ const DigitalPassportPLM = () => {
 
   const [view, setView] = useState('dashboard');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  // Откуда открыли карточку (каталог, помощник, дашборд) — туда и возвращаемся,
+  // причём на то же место прокрутки
+  const [returnTo, setReturnTo] = useState('catalog');
+  const scrollPositions = useRef({});
   const [activeTab, setActiveTab] = useState('general');
 
   const [saving, setSaving] = useState(false);
@@ -96,12 +100,34 @@ const DigitalPassportPLM = () => {
   const navigate = (target) => {
     setView(target);
     if (target !== 'import') setSelectedProduct(null);
+    window.scrollTo(0, 0);
   };
+
+  // Назад из карточки: на экран, откуда пришли, и на ту же прокрутку
+  const goBack = () => {
+    setSelectedProduct(null);
+    setView(returnTo);
+  };
+
+  // Прокрутку восстанавливаем после отрисовки экрана, но до показа кадра
+  useLayoutEffect(() => {
+    const saved = scrollPositions.current[view];
+    if (saved !== undefined) {
+      window.scrollTo(0, saved);
+      delete scrollPositions.current[view];
+    }
+  }, [view]);
 
   // В каталоге у нас summary без характеристик, для карточки тянем полные данные
   const openProduct = async (productId) => {
     try {
-      showProduct(await api.getProduct(productId));
+      const fullProduct = await api.getProduct(productId);
+      if (['catalog', 'assistant', 'dashboard'].includes(view)) {
+        setReturnTo(view);
+        scrollPositions.current[view] = window.scrollY;
+      }
+      showProduct(fullProduct);
+      window.scrollTo(0, 0);
     } catch (err) {
       alert(`Не удалось открыть изделие: ${err.message}`);
     }
@@ -270,7 +296,10 @@ const DigitalPassportPLM = () => {
           <Dashboard onOpenProduct={openProduct} onGoCatalog={() => setView('catalog')} />
         )}
 
-        {ready && view === 'catalog' && (
+        {/* Каталог и помощник не размонтируются при уходе в карточку изделия:
+            иначе сбросились бы поиск, фильтры, подгруженные карточки и диалог */}
+        {ready && (
+          <div hidden={view !== 'catalog'}>
           <CatalogPage
             products={products}
             stages={stages}
@@ -281,10 +310,13 @@ const DigitalPassportPLM = () => {
             onEdit={editProduct}
             onDelete={deleteProduct}
           />
+          </div>
         )}
 
-        {ready && view === 'assistant' && (
-          <AssistantPage getStageStyle={getStageStyle} onOpenProduct={openProduct} />
+        {ready && (
+          <div hidden={view !== 'assistant'}>
+            <AssistantPage getStageStyle={getStageStyle} onOpenProduct={openProduct} />
+          </div>
         )}
 
         {!serverError && view === 'import' && <ImportPage onFileSelected={handleFileSelected} />}
@@ -331,7 +363,7 @@ const DigitalPassportPLM = () => {
             tabs={DETAIL_TABS}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            onBack={() => navigate('catalog')}
+            onBack={goBack}
             onEdit={() => editProduct(selectedProduct)}
             onDocumentUpload={handleDocumentUpload}
             onDeleteDocument={deleteDocument}

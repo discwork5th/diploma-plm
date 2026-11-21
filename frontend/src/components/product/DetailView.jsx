@@ -20,7 +20,7 @@ const DetailView = ({
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="flex items-center gap-2 text-slate-600 hover:text-slate-800 font-medium">
-        ← Назад к каталогу
+        ← Назад
       </button>
 
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
