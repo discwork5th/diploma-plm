@@ -90,14 +90,14 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
           <div className="flex gap-2">
             <button
               onClick={onAdd}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 btn-primary text-white rounded-lg transition-colors font-medium"
             >
               <Plus className="w-5 h-5" />
               Добавить
             </button>
             <button
               onClick={onExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 btn-secondary text-slate-800 rounded-lg transition-colors font-medium"
             >
               <Download className="w-5 h-5" />
               Экспорт
@@ -142,19 +142,19 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
                 <div className="flex gap-2">
                   <button
                     onClick={() => onOpen(product)}
-                    className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    className="flex-1 px-3 py-2 btn-primary text-white rounded-lg transition-colors text-sm font-medium"
                   >
                     Открыть
                   </button>
                   <button
                     onClick={e => onEdit(product, e)}
-                    className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                    className="px-3 py-2 btn-secondary text-slate-800 rounded-lg transition-colors"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={e => onDelete(product.id, e)}
-                    className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                    className="px-3 py-2 btn-secondary text-red-700 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -168,7 +168,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
       {filteredProducts.length > shown && (
         <div className="text-center">
           <button onClick={() => setShown(shown + PAGE)}
-            className="px-6 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">
+            className="px-6 py-2 btn-secondary rounded-lg text-slate-800 font-medium">
             Показать ещё
           </button>
         </div>
@@ -185,7 +185,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
           </p>
           <button
             onClick={onAdd}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="px-6 py-3 btn-primary text-white rounded-lg transition-colors font-medium"
           >
             Добавить первое изделие
           </button>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SITE, PIPES, SITE_W, SITE_D } from './plantSite';
+import { SITE, PIPES, SITE_W, SITE_D, ROADS, RAIL } from './plantSite';
 
 // ============================================================================
 // Карта предприятия: каркасная изометрия корпусов на чёрном листе.
@@ -154,6 +154,10 @@ const PlantMap = ({ byLocation, selected, onSelect }) => {
     <svg viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} className="w-full h-auto select-none" role="group" aria-label="Генплан предприятия">
       <g stroke="#FFFFFF" strokeOpacity="0.06" strokeWidth="0.6">{grid}</g>
       <polygon points={pts([0, 0], [SITE_W, 0], [SITE_W, SITE_D], [0, SITE_D])} fill="none" stroke="#FFFFFF" strokeOpacity="0.25" strokeDasharray="6 4" />
+      <g fill="#FFFFFF" fillOpacity="0.06">
+        {ROADS.map((r, i) => <polygon key={i} points={pts([r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.d], [r.x, r.y + r.d])} />)}
+      </g>
+      <polyline points={pts(...RAIL.map(([a, b]) => [a, b]))} fill="none" stroke="#FFFFFF" strokeOpacity="0.3" strokeWidth="3" strokeDasharray="1 3" />
       <g fill="none" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="4 3">
         {PIPES.map((p, i) => <polyline key={i} points={pts(...p.map(([a, b]) => [a, b, 0.05]))} />)}
       </g>

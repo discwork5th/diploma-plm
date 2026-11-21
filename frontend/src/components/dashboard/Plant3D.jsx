@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { SITE, PIPES, SITE_W, SITE_D } from './plantSite';
+import { SITE, PIPES, SITE_W, SITE_D, ROADS, RAIL, GATE, CHECKPOINT, PARKING, TREES } from './plantSite';
 
 // ============================================================================
 // 3D-модель предприятия (three.js)
@@ -33,7 +33,12 @@ const MAT = {
   dark: new THREE.MeshStandardMaterial({ color: 0x0e0e0d, roughness: 0.6 }),
   glass: new THREE.MeshStandardMaterial({ color: 0x1a1712, emissive: 0xffc98a, emissiveIntensity: 0.22, roughness: 0.2 }),
   water: new THREE.MeshStandardMaterial({ color: 0x0d1012, roughness: 0.05, metalness: 0.8 }),
-  beacon: new THREE.MeshStandardMaterial({ color: 0x300000, emissive: 0xe5484d, emissiveIntensity: 1.1 })
+  beacon: new THREE.MeshStandardMaterial({ color: 0x300000, emissive: 0xe5484d, emissiveIntensity: 1.1 }),
+  asphalt: new THREE.MeshStandardMaterial({ color: 0x121211, roughness: 0.95 }),
+  marking: new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 0.8 }),
+  rail: new THREE.MeshStandardMaterial({ color: 0x9a9a94, roughness: 0.3, metalness: 1 }),
+  sleeper: new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 1 }),
+  foliage: new THREE.MeshStandardMaterial({ color: 0x2f342f, roughness: 0.9, flatShading: true })
 };
 const EDGE = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
 
@@ -151,7 +156,7 @@ function buildBuilding(b) {
 // Трубопроводы на эстакаде: трубы на высоте 0.9 и опоры через ~2 клетки
 function buildPipes() {
   const g = new THREE.Group();
-  const y = 0.9;
+  const y = 1.3;   // выше проезда: машины проходят под эстакадой
   for (const line of PIPES) {
     for (let i = 0; i < line.length - 1; i++) {
       const a = new THREE.Vector3(X(line[i][0]), y, Z(line[i][1]));
@@ -167,6 +172,81 @@ function buildPipes() {
         g.add(mesh(new THREE.BoxGeometry(0.08, y, 0.08), MAT.roof, p.x, y / 2, p.z));
       }
     }
+  }
+  return g;
+}
+
+// Всё, что делает площадку заводом, а не набором коробок: проезды с разметкой,
+// ж/д ветка, забор с воротами, проходная, стоянка, деревья
+function buildSiteFurniture() {
+  const g = new THREE.Group();
+  const flat = (w, d, material, x, z, y = 0.012) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), material);
+    m.position.set(x, y, z);
+    m.receiveShadow = true;
+    return m;
+  };
+  for (const r of ROADS) {
+    g.add(flat(r.w, r.d, MAT.asphalt, X(r.x + r.w / 2), Z(r.y + r.d / 2)));
+    // Прерывистая осевая линия
+    const along = r.w > r.d;
+    const len = along ? r.w : r.d;
+    for (let t = 0.6; t < len - 0.6; t += 1.4) {
+      g.add(flat(along ? 0.6 : 0.06, along ? 0.06 : 0.6, MAT.marking,
+        along ? X(r.x + t + 0.3) : X(r.x + r.w / 2), along ? Z(r.y + r.d / 2) : Z(r.y + t + 0.3), 0.03));
+    }
+  }
+  // Ж/д ветка: два рельса и шпалы
+  for (let i = 0; i < RAIL.length - 1; i++) {
+    const [ax, ay] = RAIL[i], [bx, by] = RAIL[i + 1];
+    const alongX = ay === by;
+    const len = alongX ? Math.abs(bx - ax) : Math.abs(by - ay);
+    const cx = X((ax + bx) / 2), cz = Z((ay + by) / 2);
+    for (const off of [-0.22, 0.22]) {
+      g.add(mesh(new THREE.BoxGeometry(alongX ? len : 0.05, 0.06, alongX ? 0.05 : len), MAT.rail,
+        alongX ? cx : cx + off, 0.08, alongX ? cz + off : cz));
+    }
+    for (let t = 0; t <= len; t += 0.45) {
+      g.add(mesh(new THREE.BoxGeometry(alongX ? 0.12 : 0.7, 0.05, alongX ? 0.7 : 0.12), MAT.sleeper,
+        alongX ? X(Math.min(ax, bx) + t) : cx, 0.03, alongX ? cz : Z(Math.min(ay, by) + t)));
+    }
+  }
+  // Забор по периметру: столбы и две жерди, разрыв под ворота
+  const fence = (x1, y1, x2, y2) => {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const alongX = y1 === y2;
+    for (let t = 0; t <= len + 0.01; t += 1.5) {
+      const px = alongX ? x1 + t : x1, py = alongX ? y1 : y1 + t;
+      g.add(mesh(new THREE.BoxGeometry(0.07, 0.9, 0.07), MAT.roof, X(px), 0.45, Z(py)));
+    }
+    for (const h of [0.35, 0.8]) {
+      g.add(mesh(new THREE.BoxGeometry(alongX ? len : 0.03, 0.03, alongX ? 0.03 : len), MAT.metal,
+        X((x1 + x2) / 2), h, Z((y1 + y2) / 2)));
+    }
+  };
+  fence(0, 0, SITE_W, 0);
+  fence(0, 0, 0, SITE_D);
+  fence(SITE_W, 0, SITE_W, SITE_D);
+  fence(0, SITE_D, GATE.x, SITE_D);
+  fence(GATE.x + GATE.w, SITE_D, SITE_W, SITE_D);
+  // Шлагбаум и проходная
+  const barrier = mesh(new THREE.BoxGeometry(GATE.w, 0.06, 0.06), MAT.marking, X(GATE.x + GATE.w / 2), 0.75, Z(SITE_D));
+  g.add(barrier);
+  const c = CHECKPOINT;
+  g.add(mesh(new THREE.BoxGeometry(c.w, c.h, c.d), MAT.wall, X(c.x + c.w / 2), c.h / 2, Z(c.y + c.d / 2)));
+  g.add(mesh(new THREE.BoxGeometry(c.w + 0.3, 0.1, c.d + 0.3), MAT.roof, X(c.x + c.w / 2), c.h + 0.05, Z(c.y + c.d / 2)));
+  g.add(mesh(new THREE.BoxGeometry(c.w * 0.8, 0.25, 0.04), MAT.glass, X(c.x + c.w / 2), c.h * 0.65, Z(c.y + c.d) + 0.02));
+  // Стоянка: асфальт и разметка мест
+  g.add(flat(PARKING.w, PARKING.d, MAT.asphalt, X(PARKING.x + PARKING.w / 2), Z(PARKING.y + PARKING.d / 2)));
+  for (let x = PARKING.x; x <= PARKING.x + PARKING.w + 0.01; x += 1) {
+    g.add(flat(0.05, PARKING.d * 0.8, MAT.marking, X(x), Z(PARKING.y + PARKING.d * 0.6), 0.03));
+  }
+  // Деревья: ствол и низкополигональная крона
+  for (const [tx, ty] of TREES) {
+    g.add(cylinder(0.07, 0.6, MAT.sleeper, X(tx), 0, Z(ty), 8));
+    const crown = mesh(new THREE.IcosahedronGeometry(0.5, 0), MAT.foliage, X(tx), 1.05, Z(ty));
+    crown.rotation.y = tx * 1.7;
+    g.add(crown);
   }
   return g;
 }
@@ -208,20 +288,20 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
     host.appendChild(labels.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 38, 75);
+    scene.fog = new THREE.Fog(0x000000, 55, 105);
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.7;
 
     const camera = new THREE.PerspectiveCamera(32, width / height, 0.5, 200);
-    camera.position.set(19, 20, 25);
+    camera.position.set(24, 27, 37);
 
     const controls = new OrbitControls(camera, labels.domElement);
-    controls.target.set(0, 1.2, 1.5);
+    controls.target.set(0, 0.5, 3);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.minDistance = 16;
-    controls.maxDistance = 70;
+    controls.maxDistance = 90;
     controls.maxPolarAngle = 1.32;     // не опускаться под землю
     controls.enablePan = false;
     controls.update();
@@ -229,10 +309,10 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
     // Свет: мягкий общий + «солнце» с тенями + холодная заливка сбоку
     scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.35));
     const sun = new THREE.DirectionalLight(0xffffff, 2.6);
-    sun.position.set(-14, 26, 12);
+    sun.position.set(-18, 32, 14);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 70 });
+    Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 90 });
     sun.shadow.bias = -0.0005;
     scene.add(sun);
     const rim = new THREE.DirectionalLight(0x9fb4ff, 0.6);
@@ -254,10 +334,7 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
     grid.position.y = 0.005;
     scene.add(grid);
     scene.add(buildPipes());
-    // Резервуарный парк у котельной — просто для вида, данных за ним нет
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
-      scene.add(cylinder(0.38, 1.3, MAT.metal, X(7.4 + i * 1), 0, Z(10.7 + j * 0.95), 20));
-    }
+    scene.add(buildSiteFurniture());
 
     // Корпуса, подписи и маячки
     const buildings = new Map();
@@ -384,7 +461,7 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
   useEffect(() => { apiRef.current?.setStats(byLocation); }, [byLocation]);
   useEffect(() => { apiRef.current?.setSelected(selected); }, [selected]);
 
-  return <div ref={hostRef} className="relative w-full h-[440px] lg:h-[520px] plant-3d" />;
+  return <div ref={hostRef} className="relative w-full h-[460px] lg:h-[600px] plant-3d" />;
 };
 
 export default Plant3D;

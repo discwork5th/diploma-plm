@@ -244,13 +244,13 @@ const RulesManager = () => {
             <button
               onClick={saveRule}
               disabled={saving}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-60"
+              className="px-6 py-2 btn-primary text-white rounded-lg transition-colors font-medium disabled:opacity-60"
             >
               {saving ? 'Сохранение...' : 'Сохранить правило'}
             </button>
             <button
               onClick={cancelEdit}
-              className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+              className="px-6 py-2 btn-secondary text-slate-800 rounded-lg transition-colors font-medium"
             >
               Отмена
             </button>
@@ -274,7 +274,7 @@ const RulesManager = () => {
           </div>
           <button
             onClick={startCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 btn-primary text-white rounded-lg transition-colors font-medium"
           >
             <Plus className="w-5 h-5" />
             Добавить правило
@@ -299,7 +299,7 @@ const RulesManager = () => {
           <p className="text-slate-500 mb-4">Добавьте первое правило, чтобы экспертная система могла оценивать изделия</p>
           <button
             onClick={startCreate}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="px-6 py-3 btn-primary text-white rounded-lg transition-colors font-medium"
           >
             Добавить первое правило
           </button>

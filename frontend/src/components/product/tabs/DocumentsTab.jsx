@@ -7,7 +7,7 @@ const DocumentsTab = ({ selectedProduct, onDocumentUpload, onDeleteDocument, upl
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-bold text-slate-800">Документация</h3>
         <label className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer font-medium ${
-          uploadingDoc ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+          uploadingDoc ? 'bg-slate-400 text-white cursor-not-allowed' : 'btn-primary text-white'
         }`}>
           <Upload className="w-5 h-5" />
           {uploadingDoc ? 'Загрузка...' : 'Загрузить файл'}

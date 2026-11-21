@@ -32,7 +32,7 @@ export default {
         display: ['Onest', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
       },
-      borderRadius: { md: '2px', lg: '3px', xl: '4px', '2xl': '6px' },
+      borderRadius: { md: '6px', lg: '8px', xl: '12px', '2xl': '16px' },
       boxShadow: {
         sm: 'none',
         DEFAULT: 'none',

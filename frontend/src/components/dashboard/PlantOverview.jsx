@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import PlantMap from './PlantMap';
 
 // three.js весит несколько сотен килобайт: грузим его отдельным файлом,
@@ -19,7 +20,7 @@ import { SITE } from './plantSite';
 const DOT = { critical: 'bg-alarm', warning: 'bg-caution', info: 'bg-slate-400', normal: 'bg-ok' };
 
 // Чёрный лист с генпланом: слева карта, справа сводка по выбранному корпусу
-const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog }) => {
+const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }) => {
   // По умолчанию открыт корпус, где больше всего аварийного оборудования
   const initial = [...(byLocation || [])].sort((a, b) => b.critical - a.critical || b.warning - a.warning)[0]?.location || null;
   const [selected, setSelected] = useState(initial);
@@ -28,17 +29,27 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog }) => {
   const offMap = byLocation.filter(l => !SITE.some(s => s.key === l.location));
 
   return (
-    <section className="bg-black text-white rounded-xl overflow-hidden grid lg:grid-cols-[1fr,320px]" aria-labelledby="plant-title">
+    <section className="bg-black text-white rounded-xl overflow-hidden grid lg:grid-cols-[1fr,360px]" aria-labelledby="plant-title">
       <div className="p-5 pb-2 min-w-0">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="plant-title" className="text-xl font-medium">Генплан предприятия</h2>
-          <div className="flex gap-0.5 p-0.5 rounded-md border border-white/20 text-xs" role="group" aria-label="Вид генплана">
-            {[['3d', '3D-модель'], ['plan', 'Схема']].map(([id, label]) => (
-              <button key={id} onClick={() => setMode(id)} aria-pressed={mode === id}
-                className={`px-2.5 py-1 rounded ${mode === id ? 'bg-white text-black' : 'text-white/70 hover:text-white'}`}>
-                {label}
+          <div>
+            <h2 id="plant-title" className="text-xl font-medium">Генплан предприятия</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 p-1 rounded-xl bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)] text-sm" role="group" aria-label="Вид генплана">
+              {[['3d', '3D-модель'], ['plan', 'Схема']].map(([id, label]) => (
+                <button key={id} onClick={() => setMode(id)} aria-pressed={mode === id}
+                  className={`px-3.5 py-1.5 rounded-lg transition-colors ${mode === id ? 'btn-secondary text-black' : 'text-white/70 hover:text-white'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {onRefresh && (
+              <button onClick={onRefresh} title="Обновить данные" aria-label="Обновить данные"
+                className="p-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white/80 hover:text-white hover:bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <RefreshCw className="w-4 h-4" />
               </button>
-            ))}
+            )}
           </div>
         </div>
         <p className="text-sm text-white/55 mt-1">
@@ -46,7 +57,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog }) => {
           Нажмите на корпус, чтобы увидеть, что в нём требует работ.{mode === '3d' && ' Модель можно вращать мышью и приближать колесом.'}
         </p>
         {mode === '3d' ? (
-          <Suspense fallback={<div className="h-[440px] lg:h-[520px] flex items-center justify-center text-white/50 text-sm">Загружаю 3D-модель…</div>}>
+          <Suspense fallback={<div className="h-[460px] lg:h-[600px] flex items-center justify-center text-white/50 text-sm">Загружаю 3D-модель…</div>}>
             <Plant3D byLocation={byLocation} selected={selected} onSelect={setSelected} />
           </Suspense>
         ) : (
@@ -74,7 +85,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog }) => {
             </dl>
 
             {stat.items.length > 0 ? (
-              <ul className="mt-4 divide-y divide-white/10 border-y border-white/10">
+              <ul className="mt-4 mb-4 divide-y divide-white/10 border-y border-white/10">
                 {stat.items.map(item => (
                   <li key={item.id}>
                     <button onClick={() => onOpenProduct(item.id)} className="w-full text-left py-2 group">
@@ -90,11 +101,11 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog }) => {
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-sm text-white/60">Всё оборудование корпуса в норме.</p>
+              <p className="mt-4 mb-4 text-sm text-white/60">Всё оборудование корпуса в норме.</p>
             )}
 
             <button onClick={() => onShowInCatalog(stat.location)}
-              className="mt-auto pt-4 self-start text-sm font-medium text-white underline underline-offset-4 decoration-white/40 hover:decoration-white">
+              className="btn-secondary mt-auto self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
               Всё оборудование корпуса в каталоге
             </button>
           </>

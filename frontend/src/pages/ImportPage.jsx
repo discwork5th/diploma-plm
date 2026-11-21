@@ -19,7 +19,7 @@ const ImportPage = ({ onFileSelected }) => (
           <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
           <h3 className="font-semibold text-lg text-slate-700 mb-2">Загрузите файл с данными</h3>
           <p className="text-slate-500 mb-4">Поддерживаются форматы: Excel (.xlsx, .xls), CSV, JSON</p>
-          <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium">
+          <label className="inline-flex items-center gap-2 px-6 py-3 btn-primary text-white rounded-lg transition-colors cursor-pointer font-medium">
             <FileText className="w-5 h-5" />
             Выбрать файл
             <input type="file" accept=".xlsx,.xls,.csv,.json" onChange={onFileSelected} className="hidden" />

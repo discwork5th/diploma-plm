@@ -100,7 +100,7 @@ const ImportPreviewModal = ({ preview, importing, onConfirm, onCancel }) => (
           <button
             onClick={onCancel}
             disabled={importing}
-            className="px-5 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium disabled:opacity-50"
+            className="px-5 py-2 btn-secondary text-slate-800 rounded-lg transition-colors font-medium disabled:opacity-50"
           >
             {preview.ok ? 'Отмена' : 'Закрыть'}
           </button>
@@ -108,7 +108,7 @@ const ImportPreviewModal = ({ preview, importing, onConfirm, onCancel }) => (
             <button
               onClick={onConfirm}
               disabled={importing}
-              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-60 flex items-center gap-2"
+              className="px-5 py-2 btn-primary text-white rounded-lg transition-colors font-medium disabled:opacity-60 flex items-center gap-2"
             >
               {importing && <RefreshCw className="w-4 h-4 animate-spin" />}
               {importing ? 'Импортируется...' : `Импортировать ${preview.validRows} строк`}

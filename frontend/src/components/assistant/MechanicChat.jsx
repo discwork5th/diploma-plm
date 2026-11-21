@@ -170,7 +170,7 @@ const MechanicChat = ({ status, onOpenProduct }) => {
           placeholder="Спросите про оборудование, ТО, резерв…"
           className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         <button type="submit" disabled={loading || !input.trim()}
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">
+          className="flex items-center gap-2 px-5 py-2 btn-primary text-white rounded-lg font-medium disabled:opacity-50">
           <Send className="w-4 h-4" /> Спросить
         </button>
         {messages.length > 0 && (

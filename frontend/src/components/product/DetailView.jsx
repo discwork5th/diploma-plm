@@ -41,13 +41,13 @@ const DetailView = ({
             <button
               onClick={onDownloadPDF}
               disabled={downloadingPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 btn-primary text-white rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               title="Сформировать PDF-паспорт с QR-кодом"
             >
               <FileDown className="w-5 h-5" />
               {downloadingPDF ? 'Формирование...' : 'Скачать паспорт'}
             </button>
-            <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+            <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 btn-secondary text-slate-800 rounded-lg transition-colors">
               <Edit className="w-5 h-5" />
               Редактировать
             </button>

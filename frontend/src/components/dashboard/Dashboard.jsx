@@ -91,25 +91,8 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Сводная панель</h2>
-          <p className="text-sm text-slate-500">
-            Текущее состояние парка промышленного оборудования
-          </p>
-        </div>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Обновить
-        </button>
-      </div>
-
       {data.byLocation?.length > 0 && (
-        <PlantOverview byLocation={data.byLocation} onOpenProduct={onOpenProduct} onShowInCatalog={onShowInCatalog} />
+        <PlantOverview byLocation={data.byLocation} onOpenProduct={onOpenProduct} onShowInCatalog={onShowInCatalog} onRefresh={load} />
       )}
 
       {/* Показатели: ячейки одной таблицы, разделённые тонкими линиями */}

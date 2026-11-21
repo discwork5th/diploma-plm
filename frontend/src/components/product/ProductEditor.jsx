@@ -20,7 +20,7 @@ const ProductEditor = ({
       <button
         onClick={onSave}
         disabled={saving}
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+        className="px-6 py-2 btn-primary text-white rounded-lg transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {saving ? 'Сохранение...' : 'Сохранить изделие'}
       </button>
@@ -150,7 +150,7 @@ const ProductEditor = ({
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-slate-800">Технические характеристики</h3>
-            <button onClick={onAddSpec} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            <button onClick={onAddSpec} className="flex items-center gap-2 px-4 py-2 btn-primary text-white rounded-lg text-sm">
               <Plus className="w-4 h-4" />
               Добавить
             </button>
@@ -175,7 +175,7 @@ const ProductEditor = ({
                       placeholder="Значение (напр. 11 кВт)"
                     />
                   </div>
-                  <button onClick={() => onDeleteSpec(spec.id)} className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                  <button onClick={() => onDeleteSpec(spec.id)} className="px-3 py-2 btn-secondary text-red-700 rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -191,7 +191,7 @@ const ProductEditor = ({
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-slate-800">История жизненного цикла</h3>
-            <button onClick={onAddLifecycleEvent} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            <button onClick={onAddLifecycleEvent} className="flex items-center gap-2 px-4 py-2 btn-primary text-white rounded-lg text-sm">
               <Plus className="w-4 h-4" />
               Добавить событие
             </button>

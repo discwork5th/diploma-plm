@@ -133,7 +133,7 @@ const ExpertSystemTab = ({ selectedProduct }) => {
               <button
                 onClick={loadEvaluation}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium disabled:opacity-60"
+                className="flex items-center gap-2 px-4 py-2 btn-secondary text-slate-800 rounded-lg transition-colors text-sm font-medium disabled:opacity-60"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Переоценить
@@ -141,7 +141,7 @@ const ExpertSystemTab = ({ selectedProduct }) => {
               {evaluation.triggeredRules.length > 0 && (
                 <button
                   onClick={() => setShowExplanation(!showExplanation)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 btn-secondary text-slate-800 rounded-lg transition-colors text-sm font-medium"
                 >
                   {showExplanation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   {showExplanation ? 'Скрыть объяснение' : 'Объяснить вывод'}
