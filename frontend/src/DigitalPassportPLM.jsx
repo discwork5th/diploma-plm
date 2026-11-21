@@ -284,7 +284,7 @@ const DigitalPassportPLM = () => {
     <div className="min-h-screen bg-slate-100">
       <AppHeader view={view} onNavigate={navigate} />
 
-      <main className="max-w-[1680px] mx-auto px-6 py-6">
+      <main className="max-w-[1680px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {serverError && <ServerUnavailableBanner onRetry={loadCatalog} />}
 
         {!serverError && loading && (

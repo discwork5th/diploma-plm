@@ -304,7 +304,25 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
     controls.maxDistance = 90;
     controls.maxPolarAngle = 1.32;     // не опускаться под землю
     controls.enablePan = false;
+    // Телефон: одним пальцем страница прокручивается как обычно (иначе карта
+    // «захватывает» экран и до сводки не долистать), двумя — поворот и зум
+    controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+    labels.domElement.style.touchAction = 'pan-y';
     controls.update();
+
+    // Камера подстраивается под форму окна: на узком экране отъезжает дальше,
+    // чтобы площадка целиком влезла по ширине
+    const BASE = new THREE.Vector3(24, 27, 37).sub(controls.target);
+    const fitCamera = (w, h) => {
+      const aspect = w / h;
+      const k = aspect >= 1.5 ? 1 : Math.min(2.2, 1.5 / aspect * 0.92);
+      camera.position.copy(controls.target).add(BASE.clone().multiplyScalar(k));
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      // На узком экране подписи короче: только числа, имя — у выбранного
+      labels.domElement.classList.toggle('is-compact', w < 640);
+    };
+    fitCamera(width, height);
 
     // Свет: мягкий общий + «солнце» с тенями + холодная заливка сбоку
     scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.35));
@@ -390,8 +408,7 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
       if (!w || !h) return;
       renderer.setSize(w, h);
       labels.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      fitCamera(w, h);
     });
     resize.observe(host);
 
@@ -461,7 +478,7 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
   useEffect(() => { apiRef.current?.setStats(byLocation); }, [byLocation]);
   useEffect(() => { apiRef.current?.setSelected(selected); }, [selected]);
 
-  return <div ref={hostRef} className="relative w-full h-[460px] lg:h-[600px] plant-3d" />;
+  return <div ref={hostRef} className="relative w-full h-[340px] sm:h-[460px] lg:h-[600px] plant-3d" />;
 };
 
 export default Plant3D;

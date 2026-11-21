@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Send, RefreshCw, Wrench, ChevronDown, ChevronRight, Info, User } from 'lucide-react';
+import { Bot, Send, RefreshCw, Wrench, ChevronDown, ChevronRight, Info, User, HelpCircle, RotateCcw } from 'lucide-react';
+import ChatHelp from './ChatHelp';
 import { api } from '../../api/client';
-
-// Вопросы-примеры: показывают, что помощник умеет вызывать разные инструменты
-const EXAMPLES = [
-  'Какое оборудование требует ТО в ближайшие две недели?',
-  'Есть ли в резерве насос на замену с подачей от 8 м³/ч?',
-  'Что у нас в критическом состоянии в Цехе №2?',
-  'Сколько единиц оборудования по местам установки?'
-];
 
 // Человеческие названия инструментов для блока «Ход работы»
 const TOOL_LABELS = {
@@ -85,6 +78,7 @@ const MechanicChat = ({ status, onOpenProduct }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
   const endRef = useRef(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [messages, loading]);
@@ -110,21 +104,9 @@ const MechanicChat = ({ status, onOpenProduct }) => {
 
   return (
     <div className="space-y-4">
-      {messages.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <p className="text-slate-600 mb-4">
-            Помощник отвечает по данным парка оборудования: сам выбирает, какие запросы к базе сделать,
-            и показывает их в «Ходе работы». Номера вида <span className="px-1.5 rounded bg-blue-50 text-blue-700 text-xs font-medium">#12</span> открывают карточку изделия.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {EXAMPLES.map(ex => (
-              <button key={ex} onClick={() => send(ex)}
-                className="text-sm px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors text-left">
-                {ex}
-              </button>
-            ))}
-          </div>
-        </div>
+      {(messages.length === 0 || showHelp) && (
+        <ChatHelp llm={Boolean(status?.llm)} onAsk={(q) => { setShowHelp(false); send(q); }}
+          onClose={messages.length ? () => setShowHelp(false) : null} />
       )}
 
       {messages.map((m, i) => (
@@ -165,17 +147,23 @@ const MechanicChat = ({ status, onOpenProduct }) => {
       <div ref={endRef} />
 
       <form onSubmit={(e) => { e.preventDefault(); send(); }}
-        className="sticky bottom-4 flex gap-3 bg-white rounded-xl shadow-md border border-slate-200 p-3">
+        className="sticky bottom-3 flex gap-2 sm:gap-3 bg-white rounded-xl shadow-md border border-slate-200 p-2 sm:p-3">
         <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={1000}
           placeholder="Спросите про оборудование, ТО, резерв…"
-          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-        <button type="submit" disabled={loading || !input.trim()}
-          className="flex items-center gap-2 px-5 py-2 btn-primary text-white rounded-lg font-medium disabled:opacity-50">
-          <Send className="w-4 h-4" /> Спросить
+          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <button type="submit" disabled={loading || !input.trim()} aria-label="Спросить"
+          className="flex items-center gap-2 px-3 sm:px-5 py-2 btn-primary text-white rounded-lg font-medium disabled:opacity-50">
+          <Send className="w-4 h-4" /><span className="hidden sm:inline">Спросить</span>
         </button>
         {messages.length > 0 && (
-          <button type="button" onClick={() => { setMessages([]); setError(''); }}
-            className="px-3 py-2 text-slate-500 hover:text-slate-700 text-sm">Новый диалог</button>
+          <>
+            <button type="button" onClick={() => setShowHelp(!showHelp)} aria-label="Как спрашивать" title="Как спрашивать"
+              className="btn-secondary px-2.5 rounded-lg text-slate-700"><HelpCircle className="w-4 h-4" /></button>
+            <button type="button" onClick={() => { setMessages([]); setError(''); setShowHelp(false); }} aria-label="Новый диалог" title="Новый диалог"
+              className="btn-secondary px-2.5 sm:px-3 rounded-lg text-slate-700 text-sm flex items-center gap-1.5">
+              <RotateCcw className="w-4 h-4" /><span className="hidden sm:inline">Новый диалог</span>
+            </button>
+          </>
         )}
       </form>
     </div>

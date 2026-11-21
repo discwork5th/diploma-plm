@@ -82,11 +82,11 @@ const AssistantPage = ({ getStageStyle, onOpenProduct }) => {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+        <div className="segmented flex gap-1 p-1 rounded-xl">
           {[['chat', 'Помощник механика'], ['recommend', 'Подбор по описанию']].map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                tab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                tab === id ? 'btn-secondary text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>
               {label}
             </button>
           ))}

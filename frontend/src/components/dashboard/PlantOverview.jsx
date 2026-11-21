@@ -25,12 +25,13 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
   const initial = [...(byLocation || [])].sort((a, b) => b.critical - a.critical || b.warning - a.warning)[0]?.location || null;
   const [selected, setSelected] = useState(initial);
   const [mode, setMode] = useState(() => (hasWebGL() ? '3d' : 'plan'));
+  const [touch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
   const stat = byLocation.find(l => l.location === selected);
   const offMap = byLocation.filter(l => !SITE.some(s => s.key === l.location));
 
   return (
     <section className="bg-black text-white rounded-xl overflow-hidden grid lg:grid-cols-[1fr,360px]" aria-labelledby="plant-title">
-      <div className="p-5 pb-2 min-w-0">
+      <div className="p-4 sm:p-5 pb-2 min-w-0">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h2 id="plant-title" className="text-xl font-medium">Генплан предприятия</h2>
@@ -54,10 +55,15 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         </div>
         <p className="text-sm text-white/55 mt-1">
           В кружке — единиц оборудования в корпусе, <span className="text-alarm">красное число</span> — сколько из них в аварийном состоянии.
-          Нажмите на корпус, чтобы увидеть, что в нём требует работ.{mode === '3d' && ' Модель можно вращать мышью и приближать колесом.'}
+          <span className="hidden sm:inline">Нажмите на корпус, чтобы увидеть, что в нём требует работ.</span>
+          {mode === '3d' && (
+            <span className="block sm:inline sm:ml-1 text-white/45">
+              {touch ? 'Двумя пальцами — повернуть и приблизить.' : 'Модель можно вращать мышью и приближать колесом.'}
+            </span>
+          )}
         </p>
         {mode === '3d' ? (
-          <Suspense fallback={<div className="h-[460px] lg:h-[600px] flex items-center justify-center text-white/50 text-sm">Загружаю 3D-модель…</div>}>
+          <Suspense fallback={<div className="h-[340px] sm:h-[460px] lg:h-[600px] flex items-center justify-center text-white/50 text-sm">Загружаю 3D-модель…</div>}>
             <Plant3D byLocation={byLocation} selected={selected} onSelect={setSelected} />
           </Suspense>
         ) : (
@@ -65,7 +71,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         )}
       </div>
 
-      <aside className="border-t lg:border-t-0 lg:border-l border-white/15 p-5 flex flex-col" aria-live="polite">
+      <aside className="border-t lg:border-t-0 lg:border-l border-white/15 p-4 sm:p-5 flex flex-col" aria-live="polite">
         {!stat && <p className="text-white/60 text-sm">Выберите корпус на карте.</p>}
         {stat && (
           <>

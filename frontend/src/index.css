@@ -81,4 +81,7 @@
 }
 .plant-label .plant-crit { font: 500 11px/1 "JetBrains Mono", monospace; color: #E5484D; }
 .plant-label:hover, .plant-label.is-active { color: #fff; }
+.plant-labels.is-compact .plant-label { gap: 3px; font-size: 10.5px; }
+.plant-labels.is-compact .plant-label:not(.is-active) .plant-name { display: none; }
+.plant-labels.is-compact .plant-count { min-width: 18px; height: 18px; font-size: 10px; padding: 0 3px; }
 .plant-label.is-active .plant-count { background: #fff; color: #000; }
