@@ -10,6 +10,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: backend/.env       # настройки ИИ-подбора (создать из backend/.env.example)
+    environment:
+      TZ: Europe/Saratov         # местное время: по нему считаются смены и нагрузка в демо-телеметрии
     volumes:
       - plm-data:/data           # база и документы
     extra_hosts:

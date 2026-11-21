@@ -101,9 +101,14 @@ const AssistantPage = ({ getStageStyle, onOpenProduct, askRequest }) => {
           </span>
         )}
       </div>
-      {tab === 'chat'
-        ? <MechanicChat status={status} onOpenProduct={onOpenProduct} askRequest={askRequest} />
-        : <RecommendPanel getStageStyle={getStageStyle} onOpenProduct={onOpenProduct} />}
+      {/* Обе вкладки остаются на странице, скрывается только неактивная:
+          введённый текст и результаты подбора не пропадают при переключении */}
+      <div hidden={tab !== 'chat'}>
+        <MechanicChat status={status} onOpenProduct={onOpenProduct} askRequest={askRequest} />
+      </div>
+      <div hidden={tab !== 'recommend'}>
+        <RecommendPanel getStageStyle={getStageStyle} onOpenProduct={onOpenProduct} />
+      </div>
     </div>
   );
 };
