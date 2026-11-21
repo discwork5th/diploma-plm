@@ -142,8 +142,22 @@ function llmConfig() {
 // У DeepSeek режим рассуждений включён по умолчанию; с инструментами он требует
 // возвращать рассуждения модели в каждом следующем запросе, иначе ошибка 400.
 // Нашим задачам рассуждения не нужны: выключаем — ответ быстрее и дешевле.
+// У OpenRouter то же самое делается его собственным параметром reasoning.
 function providerExtras(cfg) {
-  return /deepseek\.com/.test(cfg.baseUrl) ? { thinking: { type: 'disabled' } } : {};
+  if (/deepseek\.com/.test(cfg.baseUrl)) return { thinking: { type: 'disabled' } };
+  if (/openrouter\.ai/.test(cfg.baseUrl)) return { reasoning: { enabled: false } };
+  return {};
+}
+
+// Заголовки запроса к модели. OpenRouter по необязательным заголовкам
+// HTTP-Referer и X-Title подписывает запросы в своей статистике
+function llmHeaders(cfg) {
+  const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` };
+  if (/openrouter\.ai/.test(cfg.baseUrl)) {
+    h['HTTP-Referer'] = process.env.PUBLIC_URL || 'https://github.com/discwork5th/diploma-plm';
+    h['X-Title'] = 'PLM digital passports';
+  }
+  return h;
 }
 
 const SYSTEM_PROMPT = `Ты инженер по подбору промышленного оборудования. Тебе дают запрос пользователя
@@ -179,7 +193,7 @@ async function askModel(cfg, query, candidates) {
     const response = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
+      headers: llmHeaders(cfg),
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0.2,
@@ -270,4 +284,4 @@ function status() {
   return { llm: Boolean(cfg), model: cfg ? cfg.model : null };
 }
 
-module.exports = { recommend, status, searchCatalog, loadCatalog, llmConfig, providerExtras, SEVERITY_LABELS };
+module.exports = { recommend, status, searchCatalog, loadCatalog, llmConfig, providerExtras, llmHeaders, SEVERITY_LABELS };

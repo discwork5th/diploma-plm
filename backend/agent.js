@@ -25,7 +25,7 @@
 // ============================================================================
 
 const db = require('./database');
-const { loadCatalog, searchCatalog, llmConfig, providerExtras, SEVERITY_LABELS } = require('./assistant');
+const { loadCatalog, searchCatalog, llmConfig, providerExtras, llmHeaders, SEVERITY_LABELS } = require('./assistant');
 const { evaluateProduct } = require('./expert-system');
 const { RESERVE } = require('./demo-fleet');
 const telemetry = require('./telemetry');
@@ -283,7 +283,7 @@ async function callModel(cfg, messages) {
     const response = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
+      headers: llmHeaders(cfg),
       body: JSON.stringify({ model: cfg.model, temperature: 0.1, messages, tools: TOOL_SPECS, tool_choice: 'auto', ...providerExtras(cfg) })
     });
     if (!response.ok) {
@@ -353,7 +353,8 @@ async function chat(history) {
       // Если модель всё же рассуждала, возвращаем рассуждения вместе с её ходом —
       // так требует API DeepSeek в режиме рассуждений
       messages.push({ role: 'assistant', content: message.content || '', tool_calls: calls,
-        ...(message.reasoning_content ? { reasoning_content: message.reasoning_content } : {}) });
+        ...(message.reasoning_content ? { reasoning_content: message.reasoning_content } : {}),
+        ...(message.reasoning_details ? { reasoning_details: message.reasoning_details } : {}) });
       for (const call of calls) {
         const name = call.function?.name;
         const args = parseArgs(call.function?.arguments);

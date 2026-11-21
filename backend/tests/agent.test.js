@@ -91,4 +91,8 @@ test('для DeepSeek режим рассуждений выключается, 
   const { providerExtras } = require('../assistant');
   assert.deepStrictEqual(providerExtras({ baseUrl: 'https://api.deepseek.com' }), { thinking: { type: 'disabled' } });
   assert.deepStrictEqual(providerExtras({ baseUrl: 'http://localhost:11434/v1' }), {});
+  assert.deepStrictEqual(providerExtras({ baseUrl: 'https://openrouter.ai/api/v1' }), { reasoning: { enabled: false } });
+  const { llmHeaders } = require('../assistant');
+  assert.ok(llmHeaders({ baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'k' })['X-Title']);
+  assert.ok(!llmHeaders({ baseUrl: 'https://api.deepseek.com', apiKey: 'k' })['X-Title']);
 });
