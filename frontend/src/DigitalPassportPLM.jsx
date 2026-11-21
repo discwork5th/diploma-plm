@@ -36,6 +36,9 @@ const EDITOR_TABS = [
   { id: 'maintenance', label: 'Обслуживание' }
 ];
 
+const MAIN_VIEWS = ['dashboard', 'catalog', 'assistant', 'rules', 'import'];
+const urlFor = (view, pid) => (pid ? `#/product/${pid}` : view === 'dashboard' ? '#/' : `#/${view}`);
+
 // Корневой компонент: держит каталог, текущий раздел и выбранное изделие,
 // а сами экраны отрисовывают страницы и компоненты из соседних папок.
 const DigitalPassportPLM = () => {
@@ -44,7 +47,14 @@ const DigitalPassportPLM = () => {
   const [loading, setLoading] = useState(true);
   const [serverError, setServerError] = useState(false);
 
-  const [view, setView] = useState('dashboard');
+  // Раздел берём из адреса (#/catalog), чтобы ссылка и обновление страницы
+  // открывали тот же экран
+  const [view, setView] = useState(() => {
+    const m = window.location.hash.match(/^#\/(\w+)/);
+    return m && MAIN_VIEWS.includes(m[1]) ? m[1] : 'dashboard';
+  });
+  // Карточка из адреса (#/product/56) — откроется после загрузки каталога
+  const initialProductId = useRef((window.location.hash.match(/^#\/product\/(\d+)/) || [])[1] || null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   // Откуда открыли карточку (каталог, помощник, дашборд) — туда и возвращаемся,
   // причём на то же место прокрутки
@@ -105,17 +115,70 @@ const DigitalPassportPLM = () => {
   // после первой загрузки каталога.
   useEffect(() => {
     if (loading || serverError) return;
-    const targetId = new URLSearchParams(window.location.search).get('productId');
+    const fromQr = new URLSearchParams(window.location.search).get('productId');
+    const targetId = fromQr || initialProductId.current;
+    initialProductId.current = null;
     if (!targetId) return;
 
     api.getProduct(parseInt(targetId, 10))
       .then(fullProduct => {
         showProduct(fullProduct);
-        // Чистим URL, чтобы при перезагрузке страницы не открывать карточку снова
-        window.history.replaceState({}, '', window.location.pathname);
+        // Убираем ?productId из адреса: дальше карточку описывает #/product/N
+        if (fromQr) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.hash);
       })
       .catch(() => { /* изделие не найдено: остаёмся на текущем экране */ });
   }, [loading, serverError]);
+
+  // ---------------- Кнопки «назад/вперёд» браузера ----------------
+  // Сайт одностраничный: экраны переключаются состоянием React, страница не
+  // перезагружается. Чтобы браузерные стрелки работали, каждый переход
+  // записываем в историю браузера (pushState) вместе с адресом #/раздел,
+  // а нажатие «назад/вперёд» (событие popstate) превращаем обратно в состояние.
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+  }, []);
+
+  useEffect(() => {
+    if (view === 'editor') return;                       // редактор — не отдельный шаг истории
+    const pid = view === 'details' ? selectedProduct?.id : null;
+    if (view === 'details' && !pid) return;
+    const st = window.history.state;
+    if (st?.plm && st.view === view && st.pid === pid) return;   // уже здесь (в т.ч. после «назад»)
+    if (!st?.plm) {
+      window.history.replaceState({ plm: true, view, pid, idx: 0 }, '', urlFor(view, pid));
+    } else {
+      window.history.pushState({ plm: true, view, pid, idx: (st.idx || 0) + 1 }, '', urlFor(view, pid));
+    }
+  }, [view, selectedProduct?.id]);
+
+  useEffect(() => {
+    const onPop = async (e) => {
+      // Адрес вписан руками (#/catalog, #/product/56) — у такого шага нет нашего
+      // состояния, разбираем сам адрес
+      const st = e.state?.plm ? e.state : (() => {
+        const prod = window.location.hash.match(/^#\/product\/(\d+)/);
+        if (prod) return { pid: Number(prod[1]) };
+        const m = window.location.hash.match(/^#\/(\w+)/);
+        return { view: m && MAIN_VIEWS.includes(m[1]) ? m[1] : 'dashboard' };
+      })();
+      if (st.pid) {
+        try {
+          const full = await api.getProduct(st.pid);
+          setSelectedProduct(full);
+          setActiveTab('general');
+          setView('details');
+        } catch { setSelectedProduct(null); setView('catalog'); }
+      } else {
+        if (scrollPositions.current[st.view] === undefined) window.scrollTo(0, 0);
+        setSelectedProduct(null);
+        setView(st.view);
+      }
+    };
+    const onHash = (e) => { if (!window.history.state?.plm) onPop(e); };
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onHash);
+    return () => { window.removeEventListener('popstate', onPop); window.removeEventListener('hashchange', onHash); };
+  }, []);
 
   const navigate = (target) => {
     setView(target);
@@ -124,7 +187,10 @@ const DigitalPassportPLM = () => {
   };
 
   // Назад из карточки: на экран, откуда пришли, и на ту же прокрутку
+  // Если карточку открыли с другого экрана сайта, это тот же шаг, что и
+  // браузерная стрелка — используем её, чтобы история не раздваивалась
   const goBack = () => {
+    if (window.history.state?.plm && window.history.state.idx > 0) { window.history.back(); return; }
     setSelectedProduct(null);
     setView(returnTo);
   };
