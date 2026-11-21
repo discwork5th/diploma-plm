@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sparkles, Send, RefreshCw, Info, HelpCircle, ArrowRight, Search } from 'lucide-react';
+import { Sparkles, Send, RefreshCw, Info, HelpCircle, ArrowRight, Search, MapPin, History, X } from 'lucide-react';
 import { api } from '../api/client';
 import ProductImage from '../components/common/ProductImage';
 import MechanicChat from '../components/assistant/MechanicChat';
@@ -11,6 +11,16 @@ const EXAMPLES = [
   'Нужно плавно регулировать скорость двигателя насоса',
   'Перемещать коробки с участка упаковки на отгрузку'
 ];
+
+// Недавние запросы подбора: хранятся в браузере, повторяются одним кликом.
+// Подбор — разовый вопрос «что взять под задачу», поэтому полноценная история
+// диалогов (как в чате механика) тут лишняя: достаточно не перепечатывать запрос
+const RECENT_KEY = 'plm-recommend-recent-v1';
+const loadRecent = () => {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY)); return Array.isArray(v) ? v.slice(0, 6) : []; }
+  catch { return []; }
+};
+const saveRecent = (list) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch { /* приватный режим */ } };
 
 const FIT_STYLES = {
   high: { label: 'Подходит', className: 'bg-green-100 text-green-800' },
@@ -40,7 +50,10 @@ const RecommendationCard = ({ item, getStageStyle, onOpen }) => {
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${severity.className}`}>{severity.label}</span>
         </div>
         <h3 className="font-bold text-lg text-slate-800">{item.name}</h3>
-        <p className="text-sm text-slate-500 mb-3">{item.type} • S/N {item.serialNumber}</p>
+        <p className="text-sm text-slate-500 mb-3 flex flex-wrap items-center gap-x-1.5">
+          <span>{item.type} • S/N {item.serialNumber}</span>
+          {item.location && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{item.location}</span>}
+        </p>
         {item.reason && (
           <p className="text-slate-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3 text-sm">
             <Sparkles className="inline w-4 h-4 text-blue-600 mr-1 -mt-0.5" />
@@ -120,14 +133,27 @@ const RecommendPanel = ({ getStageStyle, onOpenProduct }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [recent, setRecent] = useState(loadRecent);
+  const [clarify, setClarify] = useState('');
+
+  const remember = (q) => {
+    const next = [q, ...recent.filter(r => r !== q)].slice(0, 6);
+    setRecent(next); saveRecent(next);
+  };
+  const forget = (q) => {
+    const next = recent.filter(r => r !== q);
+    setRecent(next); saveRecent(next);
+  };
 
   const submit = async (text = query) => {
     const q = text.trim();
     if (q.length < 3 || loading) return;
     setLoading(true);
     setError('');
+    setClarify('');
     try {
       setResult(await api.recommend(q));
+      remember(q);
     } catch (err) {
       setError(err.message === 'SERVER_UNAVAILABLE' ? 'Сервер недоступен.' : err.message);
     } finally {
@@ -138,6 +164,17 @@ const RecommendPanel = ({ getStageStyle, onOpenProduct }) => {
   const runExample = (text) => {
     setQuery(text);
     submit(text);
+  };
+
+  // Ответ на уточняющий вопрос: дописываем его к исходному запросу и подбираем заново.
+  // Модель каждый раз видит весь запрос целиком, поэтому «память» не нужна
+  const answerClarify = (e) => {
+    e.preventDefault();
+    const a = clarify.trim();
+    if (!a) return;
+    const combined = `${query.trim()}. Уточнение: ${a}`;
+    setQuery(combined);
+    submit(combined);
   };
 
   return (
@@ -189,6 +226,22 @@ const RecommendPanel = ({ getStageStyle, onOpenProduct }) => {
             </button>
           ))}
         </div>
+
+        {recent.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Недавние запросы</p>
+            <div className="flex flex-wrap gap-2">
+              {recent.map(r => (
+                <span key={r} className="inline-flex items-center rounded-full border border-slate-200 bg-white text-sm max-w-full">
+                  <button onClick={() => runExample(r)} disabled={loading}
+                    className="pl-3 pr-1 py-1 text-slate-700 hover:text-slate-900 truncate max-w-[28rem] disabled:opacity-50" title={r}>{r}</button>
+                  <button onClick={() => forget(r)} aria-label={`Убрать «${r}» из недавних`}
+                    className="pr-2 pl-1 py-1 text-slate-400 hover:text-slate-700"><X className="w-3.5 h-3.5" /></button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -212,10 +265,19 @@ const RecommendPanel = ({ getStageStyle, onOpenProduct }) => {
               <span>{result.summary}</span>
             </p>
             {result.clarifyingQuestion && (
-              <p className="mt-3 text-slate-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                <HelpCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <span>{result.clarifyingQuestion}</span>
-              </p>
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-slate-700 flex items-start gap-2">
+                  <HelpCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <span>{result.clarifyingQuestion}</span>
+                </p>
+                <form onSubmit={answerClarify} className="mt-2 flex gap-2">
+                  <input value={clarify} onChange={(e) => setClarify(e.target.value)} maxLength={300}
+                    placeholder="Ответьте здесь, например: м³/ч, напор 40 м"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm bg-white border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent" />
+                  <button type="submit" disabled={!clarify.trim()}
+                    className="btn-primary text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50">Уточнить</button>
+                </form>
+              </div>
             )}
             {result.notice && (
               <p className="mt-3 text-sm text-slate-500 flex items-start gap-2">

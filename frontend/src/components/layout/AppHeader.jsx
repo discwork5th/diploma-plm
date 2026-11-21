@@ -12,7 +12,9 @@ const AppHeader = ({ view, onNavigate, onOpenSearch }) => (
   <header className="bg-white border-b border-slate-900">
     <div className="max-w-[1680px] mx-auto px-4 sm:px-6 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3">
+        {/* Знак и название — ссылка «на главную», как принято на сайтах: ведёт на дашборд */}
+        <button type="button" onClick={() => onNavigate('dashboard')} title="На главную — дашборд"
+          className="group flex items-center gap-3 text-left rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4">
           {/* Знак: квадратная графитовая клавиша с аббревиатурой, текст строго по центру */}
           <div className="btn-primary w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" aria-hidden="true">
             <span className="text-white font-semibold text-[13px] tracking-[0.06em] leading-none">PLM</span>
@@ -21,7 +23,7 @@ const AppHeader = ({ view, onNavigate, onOpenSearch }) => (
             <h1 className="text-base sm:text-lg font-medium text-slate-900 leading-tight">Цифровые паспорта оборудования</h1>
             <p className="hidden sm:block text-xs text-slate-500">Жизненный цикл, обслуживание и состояние парка предприятия</p>
           </div>
-        </div>
+        </button>
         <div className="flex items-center gap-2 w-full sm:w-auto">
         {onOpenSearch && (
           <button onClick={onOpenSearch} aria-label="Поиск (Ctrl+K)" title="Поиск (Ctrl+K)"

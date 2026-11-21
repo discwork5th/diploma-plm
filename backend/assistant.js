@@ -167,6 +167,10 @@ const SYSTEM_PROMPT = `Ты инженер по подбору промышле�
 Учитывай состояние: изделие в критическом состоянии, в ремонте, на этапе проектирования или списанное
 рекомендовать в работу нельзя, но можно упомянуть с оговоркой.
 Если подходящего изделия нет, честно скажи об этом и объясни, чего не хватает.
+Учитывай, где изделие сейчас: «Резерв (склад)» — свободно, его можно сразу забрать под задачу, такие варианты
+предпочтительнее при прочих равных; «Эксплуатация» — изделие уже работает на указанном участке, снять его
+можно только в ущерб тому участку — обязательно скажи об этом и назови участок.
+В текстах (summary, reason) называй изделия по названию и S/N, никогда не пиши служебный id.
 Если в запросе мало данных для подбора, задай один уточняющий вопрос.
 Отвечай по-русски, кратко и по делу.
 Верни строго JSON без пояснений вокруг:
@@ -176,7 +180,7 @@ const SYSTEM_PROMPT = `Ты инженер по подбору промышле�
 
 function describeForModel(p) {
   const specs = Object.entries(p.specs).map(([k, v]) => `${k}: ${v}`).join('; ');
-  return `id=${p.id} | ${p.name} | тип: ${p.type} | этап ЖЦ: ${p.stageName} | состояние: ${SEVERITY_LABELS[p.severity] || p.severity} | ${specs}`;
+  return `id=${p.id} | ${p.name} | S/N ${p.serialNumber} | тип: ${p.type} | этап ЖЦ: ${p.stageName} | где: ${p.location || 'не указано'} | состояние: ${SEVERITY_LABELS[p.severity] || p.severity} | ${specs}`;
 }
 
 // Модели иногда оборачивают JSON в ```json ... ``` или добавляют текст вокруг
@@ -226,8 +230,18 @@ async function askModel(cfg, query, candidates) {
 
 const toCard = (p) => ({
   id: p.id, name: p.name, type: p.type, serialNumber: p.serialNumber,
-  stageId: p.stageId, stageName: p.stageName, severity: p.severity, image: p.image, specs: p.specs
+  stageId: p.stageId, stageName: p.stageName, severity: p.severity, image: p.image, specs: p.specs,
+  location: p.location || null
 });
+
+// Страховка к промпту: если модель всё же написала служебный «id=56»,
+// подменяем его названием изделия, чтобы пользователь не видел внутренние номера
+function humanizeIds(text, byId) {
+  return String(text || '').replace(/\(?\bid\s*[=:№#]?\s*(\d+)\)?/gi, (m, id) => {
+    const p = byId.get(Number(id));
+    return p ? `${p.name} (S/N ${p.serialNumber})` : m;
+  });
+}
 
 async function recommend(query) {
   const catalog = loadCatalog();
@@ -247,11 +261,11 @@ async function recommend(query) {
       const byId = new Map(candidates.map(p => [p.id, p]));
       const recommendations = (answer.recommendations || [])
         .filter(r => byId.has(Number(r.id)))   // отбрасываем id, которых не было в списке
-        .map(r => ({ ...toCard(byId.get(Number(r.id))), fit: r.fit || 'medium', reason: r.reason || '' }));
+        .map(r => ({ ...toCard(byId.get(Number(r.id))), fit: r.fit || 'medium', reason: humanizeIds(r.reason, byId) }));
       return {
         mode: 'llm',
         model: cfg.model,
-        summary: answer.summary || '',
+        summary: humanizeIds(answer.summary, byId),
         clarifyingQuestion: answer.clarifyingQuestion || null,
         recommendations
       };
