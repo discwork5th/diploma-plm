@@ -9,7 +9,9 @@ const TOOL_LABELS = {
   maintenance_plan: 'План ТО',
   find_reserve: 'Поиск замены в резерве',
   fleet_stats: 'Сводка по парку',
-  get_equipment: 'Карточка изделия'
+  get_equipment: 'Карточка изделия',
+  live_status: 'Датчики сейчас',
+  health_forecast: 'Прогноз ресурса'
 };
 
 const SEVERITY_DOT = { normal: 'bg-green-500', info: 'bg-blue-500', warning: 'bg-amber-500', critical: 'bg-red-500' };
@@ -73,13 +75,22 @@ function Trace({ trace }) {
   );
 }
 
-const MechanicChat = ({ status, onOpenProduct }) => {
+const MechanicChat = ({ status, onOpenProduct, askRequest }) => {
   const [messages, setMessages] = useState([]);   // {role, content, trace?, products?, notice?}
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showHelp, setShowHelp] = useState(false);
+  const sendRef = useRef(null);       // актуальная send для эффекта ниже
   const endRef = useRef(null);
+
+  // Вопрос из командной строки (Ctrl+K): отправляем один раз
+  const handledAsk = useRef(null);
+  useEffect(() => {
+    if (!askRequest || handledAsk.current === askRequest) return;
+    handledAsk.current = askRequest;
+    sendRef.current(askRequest.q);
+  }, [askRequest]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [messages, loading]);
 
@@ -101,6 +112,8 @@ const MechanicChat = ({ status, onOpenProduct }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => { sendRef.current = send; });
 
   return (
     <div className="space-y-4">

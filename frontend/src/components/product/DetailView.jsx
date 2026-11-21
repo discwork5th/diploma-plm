@@ -3,6 +3,7 @@ import ProductImage from '../common/ProductImage';
 import DocumentsTab from './tabs/DocumentsTab';
 import ExpertSystemTab from './tabs/ExpertSystemTab';
 import GeneralTab from './tabs/GeneralTab';
+import MonitoringTab from './tabs/MonitoringTab';
 import LifecycleTab from './tabs/LifecycleTab';
 import MaintenanceTab from './tabs/MaintenanceTab';
 
@@ -95,6 +96,7 @@ const DetailView = ({
         </div>
 
         {activeTab === 'general' && <GeneralTab selectedProduct={selectedProduct} />}
+        {activeTab === 'monitoring' && <MonitoringTab selectedProduct={selectedProduct} />}
         {activeTab === 'lifecycle' && <LifecycleTab selectedProduct={selectedProduct} />}
         {activeTab === 'maintenance' && <MaintenanceTab selectedProduct={selectedProduct} />}
         {activeTab === 'expert' && <ExpertSystemTab selectedProduct={selectedProduct} />}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
@@ -71,6 +71,8 @@ function cylinder(r, h, material, x, y0, z, segments = 24) {
 // Один корпус: группа мешей + контур для подсветки выбранного
 function buildBuilding(b) {
   const g = new THREE.Group();
+  const emitters = [];   // устья труб: отсюда идёт дым
+  const spinners = [];   // крыльчатки вентиляторов
   const cx = X(b.x + b.w / 2), cz = Z(b.y + b.d / 2);
   let top = b.h;
 
@@ -109,17 +111,29 @@ function buildBuilding(b) {
   }
   if (b.chimney) {
     g.add(cylinder(0.35, 3.2, MAT.metal, X(b.x + b.w - 1), b.h, Z(b.y + 1)));
+    emitters.push(new THREE.Vector3(X(b.x + b.w - 1), b.h + 3.3, Z(b.y + 1)));
     top = Math.max(top, b.h + 3.2);
   }
   if (b.stack) {
     g.add(cylinder(0.42, 4.6, MAT.metal, cx, b.h, cz));
     for (const k of [3.4, 4.1]) g.add(cylinder(0.45, 0.14, MAT.roof, cx, b.h + k, cz));
+    emitters.push(new THREE.Vector3(cx, b.h + 4.7, cz));
     top = Math.max(top, b.h + 4.6);
   }
   if (b.vents) [1, 2.5, 4].forEach(i => g.add(cylinder(0.22, 1.1, MAT.metal, X(b.x + i), b.h, cz, 16)));
   if (b.fans) [0.9, 2.4].forEach(i => {
     g.add(cylinder(0.5, 0.25, MAT.metal, X(b.x + i), b.h, cz));
     g.add(cylinder(0.42, 0.27, MAT.dark, X(b.x + i), b.h, cz));
+    // Крыльчатка: две перекрещённые лопасти, крутятся в цикле анимации
+    const rotor = new THREE.Group();
+    rotor.position.set(X(b.x + i), b.h + 0.3, cz);
+    for (const r of [0, Math.PI / 2]) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.03, 0.1), MAT.roof);
+      blade.rotation.y = r;
+      rotor.add(blade);
+    }
+    g.add(rotor);
+    spinners.push(rotor);
   });
   if (b.tank) {
     g.add(cylinder(0.8, 2.4, MAT.metal, X(b.x + b.w + 1.3), 0, Z(b.y + 1)));
@@ -150,7 +164,7 @@ function buildBuilding(b) {
   });
   g.add(edges);
   g.traverse(o => { o.userData.key = b.key; });
-  return { group: g, edges, top, center: new THREE.Vector3(cx, 0, cz) };
+  return { group: g, edges, top, center: new THREE.Vector3(cx, 0, cz), emitters, spinners, size: Math.max(b.w, b.d) };
 }
 
 // Трубопроводы на эстакаде: трубы на высоте 0.9 и опоры через ~2 клетки
@@ -251,6 +265,51 @@ function buildSiteFurniture() {
   return g;
 }
 
+// Мягкое пятно для частиц дыма: радиальный градиент, нарисованный на холсте
+function smokeTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Грузовик: кабина и фургон. Ездит по кольцу проездов
+function makeTruck() {
+  const g = new THREE.Group();
+  const trailer = mesh(new THREE.BoxGeometry(1.4, 0.55, 0.5), MAT.roof, -0.25, 0.4, 0);
+  const cab = mesh(new THREE.BoxGeometry(0.45, 0.45, 0.48), MAT.wall, 0.72, 0.35, 0);
+  const glass = mesh(new THREE.BoxGeometry(0.03, 0.15, 0.4), MAT.glass, 0.95, 0.45, 0);
+  g.add(trailer, cab, glass);
+  return g;
+}
+
+// Путь по точкам генплана: возвращает функцию «доля пути → позиция и курс»
+function makePath(points, y) {
+  const v = points.map(([a, b]) => new THREE.Vector3(X(a), y, Z(b)));
+  const lens = v.slice(1).map((p, i) => p.distanceTo(v[i]));
+  const total = lens.reduce((s, l) => s + l, 0);
+  return (u) => {
+    let d = (((u % 1) + 1) % 1) * total;
+    for (let i = 0; i < lens.length; i++) {
+      if (d <= lens[i]) {
+        const pos = v[i].clone().lerp(v[i + 1], d / lens[i]);
+        const dir = v[i + 1].clone().sub(v[i]);
+        return { pos, heading: Math.atan2(-dir.z, dir.x) };
+      }
+      d -= lens[i];
+    }
+    return { pos: v[v.length - 1].clone(), heading: 0 };
+  };
+}
+
 // HTML-подпись над корпусом
 function makeLabel(b, onSelect) {
   const el = document.createElement('button');
@@ -258,11 +317,14 @@ function makeLabel(b, onSelect) {
   el.className = 'plant-label';
   el.innerHTML = '<span class="plant-count"></span><span class="plant-name"></span><span class="plant-crit"></span>';
   el.querySelector('.plant-name').textContent = b.short;
+  // Не отдаём нажатие на подпись в OrbitControls: иначе он захватывает указатель
+  // и щелчок до кнопки не доходит
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
   el.addEventListener('click', (e) => { e.stopPropagation(); onSelect(b.key); });
   return el;
 }
 
-const Plant3D = ({ byLocation, selected, onSelect }) => {
+const Plant3D = ({ byLocation, live, selected, onSelect }) => {
   const hostRef = useRef(null);
   const apiRef = useRef(null);          // доступ к сцене из других эффектов
   const onSelectRef = useRef(onSelect);
@@ -375,6 +437,55 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
       buildings.set(b.key, { ...built, el, beacon });
     }
 
+    // ---- Дым из труб: спрайты поднимаются, расплываются и тают ----
+    const smokeTex = smokeTexture();
+    const puffs = [];
+    for (const item of buildings.values()) {
+      for (const origin of item.emitters) {
+        for (let i = 0; i < 14; i++) {
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9a9a96, transparent: true, depthWrite: false, opacity: 0 }));
+          scene.add(sprite);
+          puffs.push({ sprite, origin, phase: i / 14 });
+        }
+      }
+    }
+
+    // ---- Транспорт: грузовик по кольцу проездов, вагон по ж/д ветке ----
+    const truck = makeTruck();
+    scene.add(truck);
+    const truckPath = makePath([[24.5, 25.5], [24.5, 9.6], [33, 9.6], [33, 17.9], [24.5, 17.9], [24.5, 25.5]], 0);
+    const wagon = mesh(new THREE.BoxGeometry(2.2, 0.75, 0.6), MAT.metal, 0, 0, 0);
+    scene.add(wagon);
+    const railPath = makePath(RAIL, 0.5);
+
+    // ---- Красная подсветка корпуса с живой тревогой (одна лампа на сцену) ----
+    const alarmLight = new THREE.PointLight(0xe5484d, 0, 9, 1.6);
+    scene.add(alarmLight);
+    let alarmKeys = [];
+
+    // ---- День и ночь: по местному времени, ночью светятся окна ----
+    const setNight = (night) => {
+      sun.intensity = night ? 0.35 : 2.6;
+      rim.intensity = night ? 0.25 : 0.6;
+      scene.environmentIntensity = night ? 0.18 : 0.7;
+      MAT.glass.emissiveIntensity = night ? 1.1 : 0.22;
+      host.classList.toggle('is-night', night);
+    };
+    const hour = new Date().getHours();
+    setNight(hour < 7 || hour >= 20);
+
+    // ---- Облёт камеры к выбранному корпусу ----
+    let flight = null;
+    const flyTo = (targetPoint, distance) => {
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      flight = {
+        t0: performance.now(), dur: 900,
+        fromT: controls.target.clone(), toT: targetPoint.clone(),
+        fromP: camera.position.clone(), toP: targetPoint.clone().add(dir.multiplyScalar(distance))
+      };
+    };
+    const overview = { target: controls.target.clone(), position: camera.position.clone() };
+
     // Клик и наведение: отличаем клик от поворота камеры по сдвигу курсора
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -424,11 +535,41 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
       if (!visible) return;
       frame = requestAnimationFrame(loop);
       const t = (performance.now() - started) / 1000;
+      if (flight) {
+        const k = Math.min(1, (performance.now() - flight.t0) / flight.dur);
+        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // плавный старт и торможение
+        controls.target.lerpVectors(flight.fromT, flight.toT, e);
+        camera.position.lerpVectors(flight.fromP, flight.toP, e);
+        if (k === 1) flight = null;
+      }
       controls.update();
+      if (!reduceMotion) {
+        for (const p of puffs) {
+          const u = (t * 0.12 + p.phase) % 1;
+          p.sprite.position.set(p.origin.x + u * 2.2 + Math.sin(u * 6 + p.phase * 9) * 0.2, p.origin.y + u * 4, p.origin.z - u * 0.8);
+          p.sprite.scale.setScalar(0.5 + u * 2.4);
+          p.sprite.material.opacity = 0.32 * Math.sin(Math.PI * u);
+        }
+        for (const item of buildings.values()) for (const r of item.spinners) r.rotation.y = t * 9;
+        const tp = truckPath(t / 40);
+        truck.position.copy(tp.pos);
+        truck.rotation.y = tp.heading;
+        const wp = railPath(0.5 + 0.48 * Math.sin(t / 22));   // вагон ходит туда-обратно
+        wagon.position.copy(wp.pos);
+        wagon.rotation.y = wp.heading;
+      }
+      if (alarmKeys.length) {
+        const item = buildings.get(alarmKeys[Math.floor(t / 3) % alarmKeys.length]);
+        alarmLight.position.set(item.center.x, item.top + 1.5, item.center.z);
+        alarmLight.intensity = 6 + 5 * Math.sin(t * 6);
+      } else alarmLight.intensity = 0;
       for (const [key, item] of buildings) {
         const active = key === apiRef.current.selected || key === hovered;
         item.edges.children.forEach(e => { e.material.opacity = key === apiRef.current.selected ? 0.9 : active ? 0.45 : 0; });
-        if (item.beacon.visible && !reduceMotion) item.beacon.scale.setScalar(1 + 0.25 * Math.sin(t * 4));
+        if (item.beacon.visible && !reduceMotion) {
+          // Живая тревога мигает быстрее и крупнее, чем «аварийное по паспорту»
+          item.beacon.scale.setScalar(item.liveAlarm ? 1.6 + 0.6 * Math.sin(t * 10) : 1 + 0.25 * Math.sin(t * 4));
+        }
       }
       renderer.render(scene, camera);
       labels.render(scene, camera);
@@ -440,19 +581,38 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
       for (const [key, item] of buildings) {
         const st = stats.get(key);
         item.el.style.display = st ? '' : 'none';
-        item.beacon.visible = Boolean(st && st.critical > 0);
+        item.critical = Boolean(st && st.critical > 0);
+        item.beacon.visible = item.critical || Boolean(item.liveAlarm);
         if (!st) continue;
         item.el.querySelector('.plant-count').textContent = st.total;
         item.el.querySelector('.plant-crit').textContent = st.critical > 0 ? st.critical : '';
         item.el.setAttribute('aria-label', `${key}: ${st.total} ед., аварийных ${st.critical}`);
       }
     };
+    // Живые тревоги из телеметрии: маячок мигает чаще, корпус подсвечен красным
+    const setLive = (snap) => {
+      const alarmed = new Set((snap?.buildings || []).filter(b => b.alarms > 0).map(b => b.location));
+      alarmKeys = [...alarmed].filter(k => buildings.has(k));
+      for (const [key, item] of buildings) {
+        item.liveAlarm = alarmed.has(key);
+        item.beacon.visible = Boolean(item.critical) || item.liveAlarm;
+      }
+    };
+    let firstSelect = true;
     const setSelected = (key) => {
       apiRef.current.selected = key;
       for (const [k, item] of buildings) item.el.classList.toggle('is-active', k === key);
+      // Первый выбор — при открытии страницы: остаёмся на общем виде
+      if (firstSelect) { firstSelect = false; return; }
+      const item = buildings.get(key);
+      if (item) flyTo(new THREE.Vector3(item.center.x, item.top * 0.35, item.center.z), 20 + item.size * 1.8);
+    };
+    const resetView = () => {
+      flight = { t0: performance.now(), dur: 900, fromT: controls.target.clone(), toT: overview.target.clone(),
+                 fromP: camera.position.clone(), toP: overview.position.clone() };
     };
 
-    apiRef.current = { buildings, selected: null, setStats, setSelected };
+    apiRef.current = { buildings, selected: null, setStats, setSelected, setLive, setNight, resetView };
     loop();
 
     return () => {
@@ -477,8 +637,20 @@ const Plant3D = ({ byLocation, selected, onSelect }) => {
   // Данные и выбор приходят через пропсы, сцена обновляется через свои функции
   useEffect(() => { apiRef.current?.setStats(byLocation); }, [byLocation]);
   useEffect(() => { apiRef.current?.setSelected(selected); }, [selected]);
+  useEffect(() => { apiRef.current?.setLive(live); }, [live]);
 
-  return <div ref={hostRef} className="relative w-full h-[340px] sm:h-[460px] lg:h-[600px] plant-3d" />;
+  const [night, setNightState] = useState(() => { const h = new Date().getHours(); return h < 7 || h >= 20; });
+  const toggleNight = () => { const n = !night; setNightState(n); apiRef.current?.setNight(n); };
+
+  return (
+    <div className="relative">
+      <div ref={hostRef} className="relative w-full h-[340px] sm:h-[460px] lg:h-[600px] plant-3d" />
+      <div className="absolute left-2 bottom-2 flex gap-1.5">
+        <button onClick={() => apiRef.current?.resetView()} className="plant-ctl">Весь завод</button>
+        <button onClick={toggleNight} className="plant-ctl" aria-pressed={night}>{night ? 'Ночь' : 'День'}</button>
+      </div>
+    </div>
+  );
 };
 
 export default Plant3D;

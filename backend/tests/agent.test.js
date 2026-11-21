@@ -59,7 +59,7 @@ test('цикл: модель вызывает инструмент, потом �
   assert.strictEqual(res.mode, 'llm');
   assert.strictEqual(res.trace[0].tool, 'fleet_stats');
   assert.strictEqual(res.answer, `Всего ${catalog.length}`);
-  assert.ok(calls[0].tools.length === 5);            // модели описаны все инструменты
+  assert.ok(calls[0].tools.length === 7);            // модели описаны все инструменты
   assert.strictEqual(calls[1].messages.at(-1).role, 'tool');
 });
 
@@ -80,6 +80,8 @@ test('без модели типовые вопросы идут в нужный
     assert.deepStrictEqual([r2.trace[0].tool, r2.trace[0].args.days], ['maintenance_plan', 14]);
     const r3 = await agent.chat([{ role: 'user', content: 'Что в критическом состоянии в Цехе №2?' }]);
     assert.strictEqual(r3.trace[0].args.location, 'Цех №2');
+    const r4 = await agent.chat([{ role: 'user', content: 'Есть ли тревоги по вибрации?' }]);
+    assert.strictEqual(r4.trace[0].tool, 'live_status');
   } finally {
     process.env.LLM_BASE_URL = saved;
   }

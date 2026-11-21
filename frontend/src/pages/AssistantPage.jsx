@@ -71,8 +71,10 @@ const RecommendationCard = ({ item, getStageStyle, onOpen }) => {
 // Раздел ИИ: две вкладки.
 //   «Помощник механика» — модель сама вызывает инструменты (запросы к базе).
 //   «Подбор по описанию» — схема RAG: поиск кандидатов + объяснение моделью.
-const AssistantPage = ({ getStageStyle, onOpenProduct }) => {
+const AssistantPage = ({ getStageStyle, onOpenProduct, askRequest }) => {
   const [tab, setTab] = useState('chat');
+  const [seenAsk, setSeenAsk] = useState(null);
+  if (askRequest && askRequest !== seenAsk) { setSeenAsk(askRequest); setTab('chat'); }
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ const AssistantPage = ({ getStageStyle, onOpenProduct }) => {
         )}
       </div>
       {tab === 'chat'
-        ? <MechanicChat status={status} onOpenProduct={onOpenProduct} />
+        ? <MechanicChat status={status} onOpenProduct={onOpenProduct} askRequest={askRequest} />
         : <RecommendPanel getStageStyle={getStageStyle} onOpenProduct={onOpenProduct} />}
     </div>
   );

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useTelemetry } from '../../telemetry/telemetryContext';
 import PlantMap from './PlantMap';
 
 // three.js весит несколько сотен килобайт: грузим его отдельным файлом,
@@ -27,14 +28,27 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
   const [mode, setMode] = useState(() => (hasWebGL() ? '3d' : 'plan'));
   const [touch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
   const stat = byLocation.find(l => l.location === selected);
+  const { snapshot, connected } = useTelemetry();
+  const live = snapshot?.buildings.find(b => b.location === selected);
+  const liveAlarms = snapshot ? snapshot.alarms.filter(a => a.zone === 'D').length : 0;
   const offMap = byLocation.filter(l => !SITE.some(s => s.key === l.location));
 
   return (
     <section className="bg-black text-white rounded-xl overflow-hidden grid lg:grid-cols-[1fr,360px]" aria-labelledby="plant-title">
       <div className="p-4 sm:p-5 pb-2 min-w-0">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <h2 id="plant-title" className="text-xl font-medium">Генплан предприятия</h2>
+            {snapshot && (
+              <span className="flex items-center gap-2 text-sm text-white/70">
+                <span className={`w-2 h-2 rounded-full ${connected ? 'bg-ok live-dot' : 'bg-white/40'}`} />
+                {connected ? 'в реальном времени' : 'нет связи'}
+                <span className="text-white/40">·</span>
+                нагрузка <span className="font-mono text-white">{snapshot.totalLoad}%</span>
+                <span className="text-white/40">·</span>
+                тревог <span className={`font-mono ${liveAlarms ? 'text-alarm' : 'text-white'}`}>{liveAlarms}</span>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex gap-1 p-1 rounded-xl bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)] text-sm" role="group" aria-label="Вид генплана">
@@ -55,7 +69,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         </div>
         <p className="text-sm text-white/55 mt-1">
           В кружке — единиц оборудования в корпусе, <span className="text-alarm">красное число</span> — сколько из них в аварийном состоянии.
-          <span className="hidden sm:inline">Нажмите на корпус, чтобы увидеть, что в нём требует работ.</span>
+          <span className="hidden sm:inline"> Нажмите на корпус, чтобы увидеть, что в нём требует работ.</span>
           {mode === '3d' && (
             <span className="block sm:inline sm:ml-1 text-white/45">
               {touch ? 'Двумя пальцами — повернуть и приблизить.' : 'Модель можно вращать мышью и приближать колесом.'}
@@ -64,7 +78,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         </p>
         {mode === '3d' ? (
           <Suspense fallback={<div className="h-[340px] sm:h-[460px] lg:h-[600px] flex items-center justify-center text-white/50 text-sm">Загружаю 3D-модель…</div>}>
-            <Plant3D byLocation={byLocation} selected={selected} onSelect={setSelected} />
+            <Plant3D byLocation={byLocation} live={snapshot} selected={selected} onSelect={setSelected} />
           </Suspense>
         ) : (
           <PlantMap byLocation={byLocation} selected={selected} onSelect={setSelected} />
@@ -76,6 +90,13 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         {stat && (
           <>
             <h3 className="text-lg font-medium leading-snug">{stat.location}</h3>
+            {live && (
+              <p className="text-sm text-white/60 mt-1 flex flex-wrap gap-x-3">
+                <span>Сейчас: нагрузка <span className="font-mono text-white">{live.load}%</span></span>
+                <span>вибрация в норме у <span className="font-mono text-white">{live.units - live.alarms - live.warnings}</span> из {live.units}</span>
+                {live.alarms > 0 && <span className="text-alarm">тревог: {live.alarms}</span>}
+              </p>
+            )}
             <dl className="grid grid-cols-2 gap-px bg-white/15 border border-white/15 mt-4 text-sm">
               {[
                 ['Единиц', stat.total, 'text-white'],

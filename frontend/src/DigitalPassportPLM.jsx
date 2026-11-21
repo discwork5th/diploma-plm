@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
-import { FileText, Clock, Wrench, Brain, Upload, RefreshCw } from 'lucide-react';
+import { FileText, Clock, Wrench, Brain, Upload, RefreshCw, Activity } from 'lucide-react';
 import { api } from './api/client';
 import { STAGE_STYLES } from './constants/stages';
 import { generateProductPassportPDF } from './lib/passportPdf';
 import { analyzeImportData, exportProductsToExcel, parseImportFile, rowToProduct } from './lib/importExport';
 import useProductEditor from './hooks/useProductEditor';
 import AppHeader from './components/layout/AppHeader';
+import TelemetryProvider from './telemetry/TelemetryProvider';
+import CommandPalette from './components/layout/CommandPalette';
 import ServerUnavailableBanner from './components/common/ServerUnavailableBanner';
 import Dashboard from './components/dashboard/Dashboard';
 import CatalogPage from './pages/CatalogPage';
@@ -18,6 +20,7 @@ import DetailView from './components/product/DetailView';
 
 const DETAIL_TABS = [
   { id: 'general', label: 'Общие сведения', icon: FileText },
+  { id: 'monitoring', label: 'Мониторинг и прогноз', icon: Activity },
   { id: 'lifecycle', label: 'Жизненный цикл', icon: Clock },
   { id: 'maintenance', label: 'Обслуживание', icon: Wrench },
   { id: 'expert', label: 'Экспертная оценка', icon: Brain },
@@ -47,6 +50,19 @@ const DigitalPassportPLM = () => {
   const scrollPositions = useRef({});
   // Фильтр каталога по месту, заданный извне (например, кликом по корпусу на генплане)
   const [catalogLocation, setCatalogLocation] = useState(null);
+  // Командная строка Ctrl+K и вопрос помощнику из неё
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [askRequest, setAskRequest] = useState(null);
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' || (e.ctrlKey || e.metaKey) && e.code === 'KeyK') {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [activeTab, setActiveTab] = useState('general');
 
   const [saving, setSaving] = useState(false);
@@ -281,8 +297,17 @@ const DigitalPassportPLM = () => {
   const ready = !serverError && !loading;
 
   return (
+    <TelemetryProvider onOpenProduct={openProduct}>
     <div className="min-h-screen bg-slate-100">
-      <AppHeader view={view} onNavigate={navigate} />
+      <AppHeader view={view} onNavigate={navigate} onOpenSearch={() => setPaletteOpen(true)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        products={products}
+        onNavigate={navigate}
+        onOpenProduct={openProduct}
+        onAsk={(q) => { setAskRequest({ q, at: Date.now() }); navigate('assistant'); }}
+      />
 
       <main className="max-w-[1680px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {serverError && <ServerUnavailableBanner onRetry={loadCatalog} />}
@@ -322,7 +347,7 @@ const DigitalPassportPLM = () => {
 
         {ready && (
           <div hidden={view !== 'assistant'}>
-            <AssistantPage getStageStyle={getStageStyle} onOpenProduct={openProduct} />
+            <AssistantPage getStageStyle={getStageStyle} onOpenProduct={openProduct} askRequest={askRequest} />
           </div>
         )}
 
@@ -381,6 +406,7 @@ const DigitalPassportPLM = () => {
         )}
       </main>
     </div>
+    </TelemetryProvider>
   );
 };
 

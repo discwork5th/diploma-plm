@@ -28,6 +28,7 @@ const db = require('./database');
 const { loadCatalog, searchCatalog, llmConfig, SEVERITY_LABELS } = require('./assistant');
 const { evaluateProduct } = require('./expert-system');
 const { RESERVE } = require('./demo-fleet');
+const telemetry = require('./telemetry');
 
 const MAX_STEPS = 6;            // сколько раз подряд модель может вызвать инструменты
 const STEP_TIMEOUT_MS = 90000;  // локальная модель на одном шаге может думать долго
@@ -219,6 +220,40 @@ const TOOLS = {
   }
 };
 
+// Телеметрия: два инструмента поверх демо-датчиков (telemetry.js)
+TOOLS.live_status = {
+  description: 'Показания датчиков прямо сейчас: общая нагрузка, тревоги по вибрации (зоны ГОСТ ISO 10816-3: '
+    + 'C — ограниченно допустимо, D — недопустимо) и сводка по корпусам. Используй для вопросов «что сейчас», '
+    + '«есть ли тревоги», «вибрация», «нагрузка».',
+  parameters: { type: 'object', properties: { location: { type: 'string', description: 'Ограничить местом установки' } } },
+  run(args, catalog) {
+    const snap = telemetry.snapshot();
+    const byId = new Map(catalog.map(p => [p.id, p]));
+    const alarms = snap.alarms.filter(a => matches(a.location, args.location)).map(a => ({
+      ...brief(byId.get(a.id)), vibration_mm_s: a.vibration, zone: a.zone
+    }));
+    return {
+      total: alarms.length,
+      plant_load_percent: snap.totalLoad,
+      buildings: snap.buildings.filter(b => matches(b.location, args.location)),
+      items: alarms
+    };
+  }
+};
+TOOLS.health_forecast = {
+  description: 'Прогноз остаточного ресурса изделия по id: индекс здоровья, темп износа, через сколько дней '
+    + 'дойдёт до порога ремонта (с интервалом). Используй для вопросов «сколько ещё проработает», «прогноз».',
+  parameters: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
+  run(args, catalog) {
+    const p = catalog.find(x => x.id === Number(args.id));
+    if (!p) return { error: 'Изделия с таким id нет' };
+    const r = telemetry.healthReport(p.id);
+    if (!r.active) return { ...brief(p), note: 'изделие не в работе — прогноза нет' };
+    return { ...brief(p), sensors: r.sensors, last_maintenance: r.lastMaintenance, trend: r.trend,
+             remaining_days_to_repair_threshold: r.rul };
+  }
+};
+
 const TOOL_SPECS = Object.entries(TOOLS).map(([name, t]) => ({
   type: 'function',
   function: { name, description: t.description, parameters: t.parameters }
@@ -235,6 +270,7 @@ const SYSTEM_PROMPT = `Ты помощник главного механика �
   (насос на 290 м³/ч вместо 8 — плохая замена).
 - Если изделие в критическом состоянии или ТО просрочено — скажи об этом прямо.
 - Отвечай по-русски, коротко: вывод, затем список. Без лишних вступлений.
+- Если спрашивают «что сейчас», про вибрацию или тревоги — это live_status; про срок службы — health_forecast.
 Сегодня ${new Date().toISOString().slice(0, 10)}.`;
 
 // ---------------------------------------------------------------------------
@@ -360,6 +396,9 @@ function fallback(question, catalog, notice) {
              trace: [{ tool, args, total: result.total, error: null }], products: byIds(result.items.slice(0, 8)) };
   };
 
+  if (/вибрац|датчик|тревог|нагрузк|сейчас/.test(q)) {
+    return run('live_status', {}, r => `Сейчас нагрузка завода ${r.plant_load_percent}%. Тревог по вибрации: ${r.total}.`);
+  }
   if (/резерв|склад|замен/.test(q)) {
     // Требование вида «подачей от 8», «мощностью не меньше 15»
     const SPEC_WORDS = { подач: 'Подача', напор: 'Напор', мощн: 'Мощность', давлен: 'давление', производ: 'Производительность' };

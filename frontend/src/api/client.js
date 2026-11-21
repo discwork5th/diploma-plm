@@ -83,6 +83,8 @@ export const api = {
     body: JSON.stringify({ messages })
   }),
 
+  getHealth: (id) => apiRequest(`/api/products/${id}/health`),
+
   // Дашборд
   getDashboardSummary: () => apiRequest('/api/dashboard/summary'),
 };

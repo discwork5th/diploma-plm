@@ -28,6 +28,7 @@ const documentsRouter = require('./routes/documents');
 const expertSystemRouter = require('./routes/expert-system');
 const dashboardRouter = require('./routes/dashboard');
 const assistantRouter = require('./routes/assistant');
+const telemetryRouter = require('./routes/telemetry');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api', documentsRouter); // маршруты документов на�
 app.use('/api', expertSystemRouter); // экспертная система: /products/:id/evaluate и /expert-rules
 app.use('/api', assistantRouter);    // ИИ-подбор: /assistant/status и /assistant/recommend
 app.use('/api', dashboardRouter);    // дашборд: /dashboard/summary
+app.use('/api', telemetryRouter);    // телеметрия: /telemetry/snapshot, /telemetry/stream, /products/:id/health
 
 
 

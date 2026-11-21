@@ -85,3 +85,19 @@
 .plant-labels.is-compact .plant-label:not(.is-active) .plant-name { display: none; }
 .plant-labels.is-compact .plant-count { min-width: 18px; height: 18px; font-size: 10px; padding: 0 3px; }
 .plant-label.is-active .plant-count { background: #fff; color: #000; }
+
+/* Всплывающие тревоги: въезжают справа — единственная анимация, которая
+   привлекает внимание без действия пользователя, и она про аварию */
+@keyframes toast-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast-in { animation: toast-in 0.25s ease-out; }
+@keyframes live-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.live-dot { animation: live-dot 1.6s ease-in-out infinite; }
+
+/* Кнопки поверх 3D-сцены */
+.plant-ctl {
+  font: 500 12px/1 Onest, system-ui, sans-serif; color: rgba(255,255,255,.85);
+  padding: 7px 10px; border-radius: 8px; background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px);
+}
+.plant-ctl:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+.plant-3d.is-night { background: radial-gradient(ellipse at 50% 40%, #0d0f14 0%, #000 70%); }
