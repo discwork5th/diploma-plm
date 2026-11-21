@@ -37,7 +37,8 @@ const EDITOR_TABS = [
 ];
 
 const MAIN_VIEWS = ['dashboard', 'catalog', 'assistant', 'rules', 'import'];
-const urlFor = (view, pid) => (pid ? `#/product/${pid}` : view === 'dashboard' ? '#/' : `#/${view}`);
+// Главная (дашборд) — чистый адрес без «#/», остальные экраны — #/раздел
+const urlFor = (view, pid) => (pid ? `#/product/${pid}` : view === 'dashboard' ? window.location.pathname : `#/${view}`);
 
 // Корневой компонент: держит каталог, текущий раздел и выбранное изделие,
 // а сами экраны отрисовывают страницы и компоненты из соседних папок.
