@@ -29,7 +29,7 @@ function PlantSummary({ byLocation, snapshot, onSelect, onOpenProduct }) {
   const RANK = { critical: 2, warning: 1 };
   const worst = byLocation.flatMap(l => l.items.map(i => ({ ...i, location: l.location })))
     .sort((a, b) => (RANK[b.severity] || 0) - (RANK[a.severity] || 0) || (a.daysUntilTO ?? 999) - (b.daysUntilTO ?? 999))
-    .slice(0, 4);
+    .slice(0, 3);
   const healthy = snapshot ? snapshot.buildings.reduce((n, b) => n + b.units - b.alarms - b.warnings, 0) : null;
   const running = snapshot ? snapshot.units.length : null;
   return (
@@ -151,7 +151,11 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         )}
       </div>
 
-      <aside className="border-t lg:border-t-0 lg:border-l border-white/15 p-4 sm:p-5 flex flex-col" aria-live="polite">
+      {/* Высоту блока задаёт карта. Боковая панель на широком экране занимает
+          ровно столько же и прокручивается внутри, если содержимое длиннее —
+          иначе под картой оставалась бы пустая чёрная полоса */}
+      <aside className="relative border-t lg:border-t-0 lg:border-l border-white/15" aria-live="polite">
+        <div className="plant-aside lg:absolute lg:inset-0 lg:overflow-y-auto p-4 sm:p-5 flex flex-col">
         {!stat && <PlantSummary byLocation={byLocation} snapshot={snapshot} onSelect={setSelected} onOpenProduct={onOpenProduct} />}
         {stat && (
           <>
@@ -199,7 +203,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
             )}
 
             <button onClick={() => onShowInCatalog({ location: stat.location })}
-              className="btn-secondary mt-auto self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
+              className="btn-secondary mt-auto lg:sticky lg:bottom-0 self-stretch text-center text-black text-sm font-medium px-4 py-2.5 rounded-lg">
               Всё оборудование корпуса в каталоге
             </button>
           </>
@@ -207,6 +211,7 @@ const PlantOverview = ({ byLocation, onOpenProduct, onShowInCatalog, onRefresh }
         {offMap.length > 0 && (
           <p className="text-xs text-white/40 mt-3">Не на генплане: {offMap.map(l => `${l.location} (${l.total})`).join(', ')}</p>
         )}
+        </div>
       </aside>
     </section>
   );
