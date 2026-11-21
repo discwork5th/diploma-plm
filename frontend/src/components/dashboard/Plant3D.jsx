@@ -36,6 +36,8 @@ const MAT = {
   water: new THREE.MeshStandardMaterial({ color: 0x0d1012, roughness: 0.05, metalness: 0.8 }),
   beacon: new THREE.MeshStandardMaterial({ color: 0x300000, emissive: 0xe5484d, emissiveIntensity: 1.1 }),
   asphalt: new THREE.MeshStandardMaterial({ color: 0x121211, roughness: 0.95 }),
+  door: new THREE.MeshStandardMaterial({ color: 0x4a4a46, roughness: 0.5, metalness: 0.6 }),
+  interior: new THREE.MeshStandardMaterial({ color: 0x0c0b09, emissive: 0xffb866, emissiveIntensity: 0.08, roughness: 1 }),
   marking: new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 0.8 }),
   rail: new THREE.MeshStandardMaterial({ color: 0x9a9a94, roughness: 0.3, metalness: 1 }),
   sleeper: new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 1 }),
@@ -81,10 +83,30 @@ function merged(parts, material) {
   return m;
 }
 
+// Подъёмные секционные ворота: тёмный проём с тёплым светом из цеха и
+// полотно, которое при открытии «сматывается» вверх (сжимается к верхней кромке).
+// Точка привязки полотна — верхний край, поэтому масштаб по высоте поднимает
+// его, а не опускает.
+function makeDoor(g, doors, w, h, x, z) {
+  g.add(mesh(new THREE.BoxGeometry(w, h, 0.04), MAT.interior, x, h / 2, z + 0.01));
+  const leaf = new THREE.Group();
+  leaf.position.set(x, h, z + 0.05);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, h, 0.05), MAT.door);
+  panel.position.y = -h / 2;
+  panel.castShadow = true;
+  panel.userData.noEdge = true;
+  leaf.add(panel);
+  const ribs = [];
+  for (let r = 0.18; r < h - 0.05; r += 0.22) ribs.push([new THREE.BoxGeometry(w * 0.9, 0.025, 0.02), 0, -r, 0.035]);
+  leaf.add(merged(ribs, MAT.roof));
+  g.add(leaf);
+  doors.push({ leaf, x, z, open: 0, phase: (x * 7.3 + z * 3.1) % 40 });
+}
+
 // Производственный корпус: стальной каркас с пилястрами по фасадам, цоколь,
 // секционные ворота с козырьками, ленточное остекление, шедовая кровля над
 // пролётами и плоский участок у торца с вентиляционными установками
-function buildShop(g, b, cx, cz) {
+function buildShop(g, b, cx, cz, doors) {
   const x0 = X(b.x), x1 = X(b.x + b.w), z0 = Z(b.y), z1 = Z(b.y + b.d);
   // Цоколь
   g.add(mesh(new THREE.BoxGeometry(b.w + 0.06, 0.32, b.d + 0.06), MAT.slab, cx, 0.16, cz));
@@ -114,15 +136,12 @@ function buildShop(g, b, cx, cz) {
 
   // Ворота: проём, секционное полотно с рейками, козырёк; и калитка рядом
   const gates = Math.max(1, Math.floor(b.w / 3.5));
-  const slats = [];
   for (let k = 0; k < gates; k++) {
     const gx = x0 + (b.w / (gates + 1)) * (k + 1);
-    g.add(mesh(new THREE.BoxGeometry(1.3, 1.55, 0.06), MAT.dark, gx, 0.78, z1 + 0.04));
-    for (let r = 0.2; r < 1.5; r += 0.22) slats.push([new THREE.BoxGeometry(1.15, 0.03, 0.02), gx, r, z1 + 0.08]);
+    makeDoor(g, doors, 1.3, 1.55, gx, z1);
     g.add(mesh(new THREE.BoxGeometry(1.6, 0.06, 0.45), MAT.metal, gx, 1.68, z1 + 0.25));
     g.add(mesh(new THREE.BoxGeometry(0.32, 0.6, 0.05), MAT.dark, gx + 1.05, 0.3, z1 + 0.04));
   }
-  g.add(merged(slats, MAT.roof));
 
   // Кровля: шеды над пролётами (≈ 70% длины) и плоский участок у восточного торца
   const sawW = b.w * 0.7, th = 0.55;
@@ -165,20 +184,21 @@ function buildBuilding(b) {
   const g = new THREE.Group();
   const emitters = [];   // устья труб: отсюда идёт дым
   const spinners = [];   // крыльчатки вентиляторов
+  const doors = [];      // подъёмные ворота
   const cx = X(b.x + b.w / 2), cz = Z(b.y + b.d / 2);
   let top = b.h;
 
   if (b.kind !== 'pad') g.add(mesh(new THREE.BoxGeometry(b.w, b.h, b.d), MAT.wall, cx, b.h / 2, cz));
 
-  if (b.kind === 'shop') top = buildShop(g, b, cx, cz);
+  if (b.kind === 'shop') top = buildShop(g, b, cx, cz, doors);
   if (b.kind === 'warehouse') {
     const p = prism([[0, 0], [b.d / 2, 0.7], [b.d, 0]], b.w, MAT.roof);
     p.rotation.y = Math.PI / 2;
     p.position.set(X(b.x), b.h, Z(b.y + b.d));
     g.add(p);
     top = b.h + 0.7;
-    // Ворота
-    for (let i = 1; i < b.w; i += 2.2) g.add(mesh(new THREE.BoxGeometry(1, 1.1, 0.05), MAT.dark, X(b.x + i), 0.55, Z(b.y + b.d) + 0.03));
+    // Ворота к проезду
+    for (let i = 1.2; i < b.w - 0.5; i += 2.4) makeDoor(g, doors, 1, 1.15, X(b.x + i), Z(b.y + b.d));
   }
   if (b.kind === 'office') {
     for (let f = 0; f < b.h - 0.5; f += 1) {
@@ -260,7 +280,7 @@ function buildBuilding(b) {
   });
   g.add(edges);
   g.traverse(o => { o.userData.key = b.key; });
-  return { group: g, edges, top, center: new THREE.Vector3(cx, 0, cz), emitters, spinners, size: Math.max(b.w, b.d) };
+  return { group: g, edges, top, center: new THREE.Vector3(cx, 0, cz), emitters, spinners, doors, size: Math.max(b.w, b.d) };
 }
 
 // Трубопроводы на эстакаде: трубы на высоте 0.9 и опоры через ~2 клетки
@@ -340,8 +360,14 @@ function buildSiteFurniture() {
   fence(0, SITE_D, GATE.x, SITE_D);
   fence(GATE.x + GATE.w, SITE_D, SITE_W, SITE_D);
   // Шлагбаум и проходная
-  const barrier = mesh(new THREE.BoxGeometry(GATE.w, 0.06, 0.06), MAT.marking, X(GATE.x + GATE.w / 2), 0.75, Z(SITE_D));
+  // Стрела шлагбаума крепится к стойке у края ворот и поднимается поворотом
+  const barrier = new THREE.Group();
+  barrier.position.set(X(GATE.x), 0.75, Z(SITE_D));
+  const arm = mesh(new THREE.BoxGeometry(GATE.w, 0.06, 0.06), MAT.marking, GATE.w / 2, 0, 0);
+  barrier.add(arm);
   g.add(barrier);
+  g.add(mesh(new THREE.BoxGeometry(0.12, 0.8, 0.12), MAT.roof, X(GATE.x) - 0.05, 0.4, Z(SITE_D)));
+  g.userData.barrier = barrier;
   const c = CHECKPOINT;
   g.add(mesh(new THREE.BoxGeometry(c.w, c.h, c.d), MAT.wall, X(c.x + c.w / 2), c.h / 2, Z(c.y + c.d / 2)));
   g.add(mesh(new THREE.BoxGeometry(c.w + 0.3, 0.1, c.d + 0.3), MAT.roof, X(c.x + c.w / 2), c.h + 0.05, Z(c.y + c.d / 2)));
@@ -359,7 +385,7 @@ function buildSiteFurniture() {
   }
   // Козловой кран над ж/д веткой у склада готовой продукции
   {
-    const cz0 = Z(13), cz1 = Z(15.5), xa = X(33.9), xb = X(35.7), hh = 3.2;
+    const cz0 = Z(13), cz1 = Z(15.5), xa = X(34.25), xb = X(35.75), hh = 3.2;   // ноги — между складом и забором
     for (const cz of [cz0, cz1]) {
       for (const lx of [xa, xb]) g.add(mesh(new THREE.BoxGeometry(0.1, hh, 0.1), MAT.metal, lx, hh / 2, cz));
       g.add(mesh(new THREE.BoxGeometry(xb - xa + 0.5, 0.22, 0.16), MAT.metal, (xa + xb) / 2, hh + 0.1, cz));
@@ -538,7 +564,10 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
     grid.position.y = 0.005;
     scene.add(grid);
     scene.add(buildPipes());
-    scene.add(buildSiteFurniture());
+    const furniture = buildSiteFurniture();
+    scene.add(furniture);
+    const barrier = furniture.userData.barrier;
+    let barrierOpen = 0;
 
     // Корпуса, подписи и маячки
     const buildings = new Map();
@@ -577,7 +606,10 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
     // ---- Транспорт: грузовик по кольцу проездов, вагон по ж/д ветке ----
     const truck = makeTruck();
     scene.add(truck);
-    const truckPath = makePath([[24.5, 25.5], [24.5, 9.6], [33, 9.6], [33, 17.9], [24.5, 17.9], [24.5, 25.5]], 0);
+    // Маршрут только по проездам, с правосторонним движением: въезд через
+    // ворота, главный проезд на запад, западный проезд на юг, проезд
+    // энергетики на восток и выезд обратно через ворота
+    const truckPath = makePath([[24.85, 27], [24.85, 9.25], [1.2, 9.25], [1.2, 17.65], [24.15, 17.65], [24.15, 27]], 0);
     const wagon = mesh(new THREE.BoxGeometry(2.2, 0.75, 0.6), MAT.metal, 0, 0, 0);
     scene.add(wagon);
     const railPath = makePath(RAIL, 0.5);
@@ -681,9 +713,25 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
           p.sprite.material.opacity = 0.32 * Math.sin(Math.PI * u);
         }
         for (const item of buildings.values()) for (const r of item.spinners) r.rotation.y = t * 9;
-        const tp = truckPath(t / 40);
+        const tp = truckPath(t / 55);
         truck.position.copy(tp.pos);
         truck.rotation.y = tp.heading;
+        // Ворота: открываются, когда рядом грузовик, а иногда и сами — кто-то
+        // выезжает на погрузчике. Плавно, со скоростью ~1 с на полный ход
+        const dt = Math.min(0.1, t - (loop.last ?? t));
+        loop.last = t;
+        for (const item of buildings.values()) {
+          for (const d of item.doors) {
+            const near = Math.hypot(truck.position.x - d.x, truck.position.z - d.z) < 3.4;
+            const cycle = (t + d.phase) % 40 < 6;
+            const target = near || cycle ? 1 : 0;
+            d.open += (target - d.open) * Math.min(1, dt * 2.5);
+            d.leaf.scale.y = 1 - 0.88 * d.open;
+          }
+        }
+        const atGate = Math.hypot(truck.position.x - X(GATE.x + GATE.w / 2), truck.position.z - Z(SITE_D)) < 3;
+        barrierOpen += ((atGate ? 1 : 0) - barrierOpen) * Math.min(1, dt * 3);
+        barrier.rotation.z = barrierOpen * Math.PI * 0.45;
         const wp = railPath(0.5 + 0.48 * Math.sin(t / 22));   // вагон ходит туда-обратно
         wagon.position.copy(wp.pos);
         wagon.rotation.y = wp.heading;
