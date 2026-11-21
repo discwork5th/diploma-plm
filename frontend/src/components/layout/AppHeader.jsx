@@ -13,7 +13,10 @@ const AppHeader = ({ view, onNavigate, onOpenSearch }) => (
     <div className="max-w-[1680px] mx-auto px-4 sm:px-6 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <div className="btn-primary text-white font-mono text-sm px-3 py-2.5 rounded-lg leading-none">ЖЦИ</div>
+          {/* Знак: квадратная графитовая клавиша с аббревиатурой, текст строго по центру */}
+          <div className="btn-primary w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" aria-hidden="true">
+            <span className="text-white font-semibold text-[13px] tracking-[0.06em] leading-none">PLM</span>
+          </div>
           <div>
             <h1 className="text-base sm:text-lg font-medium text-slate-900 leading-tight">Цифровые паспорта оборудования</h1>
             <p className="hidden sm:block text-xs text-slate-500">Жизненный цикл, обслуживание и состояние парка предприятия</p>
