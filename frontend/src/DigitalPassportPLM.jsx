@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react
 import { FileText, Clock, Wrench, Brain, Upload, RefreshCw, Activity } from 'lucide-react';
 import { api } from './api/client';
 import { STAGE_STYLES } from './constants/stages';
-import { generateProductPassportPDF } from './lib/passportPdf';
-import { analyzeImportData, exportProductsToExcel, parseImportFile, rowToProduct } from './lib/importExport';
+// Библиотеки PDF и Excel тяжёлые (≈700 КБ) и нужны только по кнопке:
+// загружаем их отдельным файлом в момент первого использования
+const pdfLib = () => import('./lib/passportPdf');
+const excelLib = () => import('./lib/importExport');
 import useProductEditor from './hooks/useProductEditor';
 import AppHeader from './components/layout/AppHeader';
 import TelemetryProvider from './telemetry/TelemetryProvider';
@@ -246,6 +248,7 @@ const DigitalPassportPLM = () => {
     setDownloadingPDF(true);
     try {
       const evaluation = await api.evaluateProduct(selectedProduct.id).catch(() => null);
+      const { generateProductPassportPDF } = await pdfLib();
       await generateProductPassportPDF(selectedProduct, stages, evaluation);
     } catch (err) {
       console.error('[PDF] Ошибка:', err);
@@ -262,6 +265,7 @@ const DigitalPassportPLM = () => {
     event.target.value = ''; // позволяет повторно выбрать тот же файл
     if (!file) return;
     try {
+      const { parseImportFile, analyzeImportData } = await excelLib();
       const rows = await parseImportFile(file);
       setImportPreview({ ...analyzeImportData(rows), fileName: file.name });
     } catch (err) {
@@ -273,6 +277,7 @@ const DigitalPassportPLM = () => {
     if (!importPreview?.ok) return;
     setImporting(true);
     let created = 0, skipped = 0, failed = 0;
+    const { rowToProduct } = await excelLib();
     for (const row of importPreview.rawData) {
       const product = rowToProduct(row);
       if (!product) { skipped++; continue; }
@@ -336,7 +341,7 @@ const DigitalPassportPLM = () => {
             stages={stages}
             getStageStyle={getStageStyle}
             onAdd={addNewProduct}
-            onExport={() => exportProductsToExcel(products, stages)}
+            onExport={async () => (await excelLib()).exportProductsToExcel(products, stages)}
             onOpen={(product) => openProduct(product.id)}
             onEdit={editProduct}
             onDelete={deleteProduct}

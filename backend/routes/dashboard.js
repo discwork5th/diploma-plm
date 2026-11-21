@@ -52,9 +52,9 @@ router.get('/dashboard/summary', (req, res) => {
       FROM products p
       JOIN maintenance m ON m.product_id = p.id
       WHERE m.next_to_date IS NOT NULL
-        AND julianday(m.next_to_date) - julianday('now') <= 30
+        AND CAST(julianday(m.next_to_date) - julianday('now') AS INTEGER) <= 30   -- так же, как в каталоге и на генплане
+        AND p.current_stage_id IN ('operation', 'maintenance')   -- у резерва и списанного ТО не проводят
       ORDER BY m.next_to_date ASC
-      LIMIT 10
     `).all();
 
     // ---- Прогон экспертной оценки по всем изделиям ----

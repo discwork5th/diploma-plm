@@ -139,7 +139,11 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
         <div className="bg-white rounded-xl border border-slate-300 p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="w-5 h-5 text-red-600" />
-            <h3 className="font-medium text-slate-900">Требуют немедленного внимания</h3>
+            <h3 className="font-medium text-slate-900">Требуют внимания</h3>
+            <span className="font-mono text-sm text-slate-500">{data.criticalProducts.length + data.warningProducts.length}</span>
+            <button onClick={() => onShowInCatalog({ severity: 'attention' })} className="ml-auto text-sm text-slate-600 hover:text-slate-900 underline underline-offset-2">
+              в каталоге
+            </button>
           </div>
           {data.criticalProducts.length === 0 && data.warningProducts.length === 0 ? (
             <div className="text-center py-8">
@@ -147,8 +151,9 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
               <p className="text-slate-600 text-sm">Все изделия в норме</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {[...data.criticalProducts, ...data.warningProducts].slice(0, 6).map((p) => {
+            // Весь список, а не первые шесть: высота ограничена, остальное — прокруткой внутри
+            <div className="space-y-2 max-h-[468px] overflow-y-auto pr-1 -mr-1 [scrollbar-width:thin]">
+              {[...data.criticalProducts, ...data.warningProducts].map((p) => {
                 const isCritical = data.criticalProducts.some(c => c.id === p.id);
                 return (
                   <div
@@ -180,7 +185,11 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
         <div className="bg-white rounded-xl border border-slate-300 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-5 h-5 text-blue-600" />
-            <h3 className="font-medium text-slate-900">Ближайшие ТО (30 дней)</h3>
+            <h3 className="font-medium text-slate-900">ТО в ближайшие 30 дней и просроченные</h3>
+            <span className="font-mono text-sm text-slate-500">{data.upcomingTO.length}</span>
+            <button onClick={() => onShowInCatalog({ severity: 'dueTO' })} className="ml-auto text-sm text-slate-600 hover:text-slate-900 underline underline-offset-2">
+              в каталоге
+            </button>
           </div>
           {data.upcomingTO.length === 0 ? (
             <div className="text-center py-8">
@@ -188,8 +197,8 @@ const Dashboard = ({ onOpenProduct, onGoCatalog, onShowInCatalog }) => {
               <p className="text-slate-600 text-sm">Нет запланированных ТО в ближайшие 30 дней</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {data.upcomingTO.slice(0, 6).map(p => {
+            <div className="space-y-2 max-h-[468px] overflow-y-auto pr-1 -mr-1 [scrollbar-width:thin]">
+              {data.upcomingTO.map(p => {
                 const overdue = p.daysUntilTO < 0;
                 const urgent = p.daysUntilTO >= 0 && p.daysUntilTO <= 7;
                 return (

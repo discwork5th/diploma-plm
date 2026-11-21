@@ -92,8 +92,11 @@ router.get('/', (req, res) => {
                        current_stage_id as currentStage, image_path as image, location
                 FROM products ORDER BY id`)
       .all();
-    // Состояние по экспертной системе — для фильтра и цветной метки в каталоге
+    // Состояние по экспертной системе и срок ТО — для фильтров и меток в каталоге
+    const due = new Map(db.prepare(`SELECT product_id, CAST(julianday(next_to_date) - julianday('now') AS INTEGER) AS d
+      FROM maintenance WHERE next_to_date IS NOT NULL`).all().map(r => [r.product_id, r.d]));
     for (const r of rows) {
+      r.daysUntilTO = due.has(r.id) ? due.get(r.id) : null;
       const e = evaluateProduct(r.id);
       r.severity = e ? e.overallSeverity : 'normal';
     }

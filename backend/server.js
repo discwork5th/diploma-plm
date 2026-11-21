@@ -30,7 +30,12 @@ const dashboardRouter = require('./routes/dashboard');
 const assistantRouter = require('./routes/assistant');
 const telemetryRouter = require('./routes/telemetry');
 
+const { llmLimit, readOnly } = require('./guards');
+
 const app = express();
+// Сайт стоит за Caddy: настоящий IP посетителя приходит в заголовке
+// X-Forwarded-For. trust proxy = 1 — доверять одному прокси перед нами
+app.set('trust proxy', 1);
 
 // ---- Middleware ----
 // CORS разрешает фронту (например, на порту 5173 у Vite) обращаться к бэку (порт 4000).
@@ -43,6 +48,11 @@ app.use(express.json({ limit: '10mb' }));
 // ---- Статика для загруженных файлов ----
 // Чтобы можно было открыть документ по прямой ссылке /uploads/products/1/file.pdf.
 app.use('/uploads', express.static(process.env.UPLOADS_DIR || path.join(__dirname, 'uploads')));
+
+// ---- Защита публичного демо (см. guards.js) ----
+app.use('/api', readOnly);
+app.use('/api/assistant/recommend', llmLimit);
+app.use('/api/assistant/chat', llmLimit);
 
 // ---- API маршруты ----
 app.use('/api/products', productsRouter);

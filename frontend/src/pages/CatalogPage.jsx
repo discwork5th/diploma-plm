@@ -5,12 +5,16 @@ import Select from '../components/common/Select';
 
 // Фильтр по состоянию (выводы экспертной системы). «Требуют внимания» —
 // как на дашборде: и предупреждения, и аварийные
+const sev = p => p.severity || 'normal';
+const ACTIVE = ['operation', 'maintenance'];
 const SEVERITY_FILTERS = [
   { value: 'all', label: 'Любое состояние', test: () => true },
-  { value: 'attention', label: 'Требуют внимания', dot: 'bg-caution', test: s => s === 'warning' || s === 'critical' },
-  { value: 'critical', label: 'Аварийное', dot: 'bg-alarm', test: s => s === 'critical' },
-  { value: 'warning', label: 'Предупреждение', dot: 'bg-caution', test: s => s === 'warning' },
-  { value: 'normal', label: 'В норме', dot: 'bg-ok', test: s => s === 'normal' || s === 'info' }
+  { value: 'attention', label: 'Требуют внимания', dot: 'bg-caution', test: p => sev(p) === 'warning' || sev(p) === 'critical' },
+  { value: 'critical', label: 'Аварийное', dot: 'bg-alarm', test: p => sev(p) === 'critical' },
+  { value: 'warning', label: 'Предупреждение', dot: 'bg-caution', test: p => sev(p) === 'warning' },
+  { value: 'normal', label: 'В норме', dot: 'bg-ok', test: p => sev(p) === 'normal' || sev(p) === 'info' },
+  // Тот же отбор, что в списке «Ближайшие ТО» на дашборде
+  { value: 'dueTO', label: 'ТО в 30 дней или просрочено', dot: 'bg-slate-900', test: p => p.daysUntilTO != null && p.daysUntilTO <= 30 && ACTIVE.includes(p.currentStage) }
 ];
 const SEVERITY_DOT = { critical: 'bg-alarm', warning: 'bg-caution', info: 'bg-slate-400', normal: 'bg-ok' };
 const SEVERITY_TEXT = { critical: 'Аварийное', warning: 'Предупреждение', info: 'Есть замечания', normal: 'В норме' };
@@ -55,7 +59,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
         [p.name, p.type, p.manufacturer, p.serialNumber, p.location].filter(Boolean).some(field => field.toLowerCase().includes(query));
       const matchesFilter = filterStage === 'all' || p.currentStage === filterStage;
       const matchesLocation = filterLocation === 'all' || p.location === filterLocation;
-      const matchesSeverity = SEVERITY_FILTERS.find(f => f.value === filterSeverity).test(p.severity || 'normal');
+      const matchesSeverity = SEVERITY_FILTERS.find(f => f.value === filterSeverity).test(p);
       return matchesSearch && matchesFilter && matchesLocation && matchesSeverity;
     });
   }, [products, searchTerm, filterStage, filterLocation, filterSeverity]);
@@ -66,7 +70,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
     ...stages.map(st => ({ value: st.id, label: st.name, count: count(p => p.currentStage === st.id) }))];
   const locationOptions = [{ value: 'all', label: 'Все места', count: products.length },
     ...locations.map(loc => ({ value: loc, label: loc, count: count(p => p.location === loc) }))];
-  const severityOptions = SEVERITY_FILTERS.map(f => ({ value: f.value, label: f.label, dot: f.dot, count: count(p => f.test(p.severity || 'normal')) }));
+  const severityOptions = SEVERITY_FILTERS.map(f => ({ value: f.value, label: f.label, dot: f.dot, count: count(p => f.test(p)) }));
 
   // Активные фильтры — плашками над результатами, у каждой крестик
   const chips = [
