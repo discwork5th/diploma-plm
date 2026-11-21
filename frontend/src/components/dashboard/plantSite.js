@@ -19,7 +19,7 @@
 export const SITE_W = 36, SITE_D = 26;
 
 export const SITE = [
-  { key: 'Цех №2 (литейный)', short: 'Цех №2', x: 2, y: 1, w: 7, d: 5, h: 3.4, kind: 'shop', chimney: true },
+  { key: 'Цех №2 (литейный)', short: 'Цех №2', x: 2, y: 1, w: 7, d: 5, h: 3.4, kind: 'shop', chimney: true, cyclones: true },
   { key: 'Цех №1 (механообработка)', short: 'Цех №1', x: 10, y: 1, w: 8, d: 5, h: 2.6, kind: 'shop' },
   { key: 'Цех №3 (сборочный)', short: 'Цех №3', x: 19, y: 1, w: 8, d: 5, h: 2.8, kind: 'shop' },
   { key: 'Цех №4 (окрасочный)', short: 'Цех №4', x: 28, y: 1.5, w: 5.5, d: 4, h: 2.4, kind: 'shop', vents: true },

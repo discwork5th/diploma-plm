@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SITE, PIPES, SITE_W, SITE_D, ROADS, RAIL, GATE, CHECKPOINT, PARKING, TREES } from './plantSite';
 
 // ============================================================================
@@ -68,6 +69,97 @@ function cylinder(r, h, material, x, y0, z, segments = 24) {
   return mesh(new THREE.CylinderGeometry(r, r, h, segments), material, x, y0 + h / 2, z);
 }
 
+// Много мелких деталей одного материала (пилястры, рейки ворот) склеиваются
+// в один меш: для видеокарты это один вызов отрисовки вместо сотни
+function merged(parts, material) {
+  const geos = parts.map(([geo, x, y, z]) => geo.translate(x, y, z));
+  const m = new THREE.Mesh(mergeGeometries(geos), material);
+  geos.forEach(g => g.dispose());
+  m.castShadow = true;
+  m.receiveShadow = true;
+  m.userData.noEdge = true;          // контур выделения рисуем только по крупным объёмам
+  return m;
+}
+
+// Производственный корпус: стальной каркас с пилястрами по фасадам, цоколь,
+// секционные ворота с козырьками, ленточное остекление, шедовая кровля над
+// пролётами и плоский участок у торца с вентиляционными установками
+function buildShop(g, b, cx, cz) {
+  const x0 = X(b.x), x1 = X(b.x + b.w), z0 = Z(b.y), z1 = Z(b.y + b.d);
+  // Цоколь
+  g.add(mesh(new THREE.BoxGeometry(b.w + 0.06, 0.32, b.d + 0.06), MAT.slab, cx, 0.16, cz));
+  // Пилястры каркаса по всем фасадам, шаг ~1 клетка
+  const ribs = [];
+  const nx = Math.max(2, Math.round(b.w)), nz = Math.max(2, Math.round(b.d));
+  for (let i = 0; i <= nx; i++) {
+    const x = x0 + (b.w / nx) * i;
+    ribs.push([new THREE.BoxGeometry(0.1, b.h, 0.06), x, b.h / 2, z1 + 0.03]);
+    ribs.push([new THREE.BoxGeometry(0.1, b.h, 0.06), x, b.h / 2, z0 - 0.03]);
+  }
+  for (let i = 0; i <= nz; i++) {
+    const z = z0 + (b.d / nz) * i;
+    ribs.push([new THREE.BoxGeometry(0.06, b.h, 0.1), x1 + 0.03, b.h / 2, z]);
+    ribs.push([new THREE.BoxGeometry(0.06, b.h, 0.1), x0 - 0.03, b.h / 2, z]);
+  }
+  // Карнизная балка по периметру
+  ribs.push([new THREE.BoxGeometry(b.w + 0.12, 0.12, 0.12), cx, b.h - 0.06, z1 + 0.03]);
+  ribs.push([new THREE.BoxGeometry(0.12, 0.12, b.d + 0.12), x1 + 0.03, b.h - 0.06, cz]);
+  g.add(merged(ribs, MAT.roof));
+
+  // Ленточное остекление: длинная лента на южном фасаде, вертикальные — на торце
+  g.add(mesh(new THREE.BoxGeometry(b.w * 0.92, 0.22, 0.04), MAT.glass, cx, b.h * 0.72, z1 + 0.02));
+  for (let i = 1; i < nz; i++) {
+    g.add(mesh(new THREE.BoxGeometry(0.04, b.h * 0.5, 0.28), MAT.glass, x1 + 0.02, b.h * 0.5, z0 + (b.d / nz) * i));
+  }
+
+  // Ворота: проём, секционное полотно с рейками, козырёк; и калитка рядом
+  const gates = Math.max(1, Math.floor(b.w / 3.5));
+  const slats = [];
+  for (let k = 0; k < gates; k++) {
+    const gx = x0 + (b.w / (gates + 1)) * (k + 1);
+    g.add(mesh(new THREE.BoxGeometry(1.3, 1.55, 0.06), MAT.dark, gx, 0.78, z1 + 0.04));
+    for (let r = 0.2; r < 1.5; r += 0.22) slats.push([new THREE.BoxGeometry(1.15, 0.03, 0.02), gx, r, z1 + 0.08]);
+    g.add(mesh(new THREE.BoxGeometry(1.6, 0.06, 0.45), MAT.metal, gx, 1.68, z1 + 0.25));
+    g.add(mesh(new THREE.BoxGeometry(0.32, 0.6, 0.05), MAT.dark, gx + 1.05, 0.3, z1 + 0.04));
+  }
+  g.add(merged(slats, MAT.roof));
+
+  // Кровля: шеды над пролётами (≈ 70% длины) и плоский участок у восточного торца
+  const sawW = b.w * 0.7, th = 0.55;
+  const teeth = Math.max(2, Math.round(sawW / 1.3)), tw = sawW / teeth;
+  for (let i = 0; i < teeth; i++) {
+    const tx = x0 + tw * i;
+    const p = prism([[0, 0], [tw, th], [tw, 0]], b.d, MAT.roof);
+    p.position.set(tx, b.h, z0);
+    g.add(p);
+    g.add(mesh(new THREE.BoxGeometry(0.04, th * 0.8, b.d * 0.94), MAT.glass, tx + tw - 0.03, b.h + th * 0.45, cz));
+  }
+  const flatX = x0 + sawW, flatW = b.w - sawW;
+  // Парапет плоской части
+  const parapet = [
+    [new THREE.BoxGeometry(flatW, 0.18, 0.06), flatX + flatW / 2, b.h + 0.09, z0 + 0.03],
+    [new THREE.BoxGeometry(flatW, 0.18, 0.06), flatX + flatW / 2, b.h + 0.09, z1 - 0.03],
+    [new THREE.BoxGeometry(0.06, 0.18, b.d), x1 - 0.03, b.h + 0.09, cz]
+  ];
+  g.add(merged(parapet, MAT.roof));
+  // Вентустановки: корпус и две крыльчатки сверху
+  const units = Math.max(1, Math.floor(b.d / 2));
+  for (let u = 0; u < units; u++) {
+    const uz = z0 + (b.d / (units + 1)) * (u + 1);
+    const ux = flatX + flatW / 2;
+    g.add(mesh(new THREE.BoxGeometry(Math.min(1.4, flatW * 0.7), 0.45, 0.8), MAT.metal, ux, b.h + 0.23, uz));
+    g.add(cylinder(0.22, 0.06, MAT.dark, ux - 0.3, b.h + 0.45, uz, 16));
+    g.add(cylinder(0.22, 0.06, MAT.dark, ux + 0.3, b.h + 0.45, uz, 16));
+  }
+  // Воздуховод от вентустановки над шедами
+  const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, sawW * 0.6, 14), MAT.metal);
+  duct.rotation.z = Math.PI / 2;
+  duct.position.set(flatX - sawW * 0.3, b.h + th + 0.25, z0 + b.d * 0.3);
+  duct.castShadow = true;
+  g.add(duct);
+  return b.h + th + 0.4;
+}
+
 // Один корпус: группа мешей + контур для подсветки выбранного
 function buildBuilding(b) {
   const g = new THREE.Group();
@@ -78,20 +170,7 @@ function buildBuilding(b) {
 
   if (b.kind !== 'pad') g.add(mesh(new THREE.BoxGeometry(b.w, b.h, b.d), MAT.wall, cx, b.h / 2, cz));
 
-  if (b.kind === 'shop') {
-    // Шеды: наклонная кровля и остеклённая вертикальная грань у каждого зуба
-    const teeth = Math.round(b.w / 1.4), tw = b.w / teeth, th = 0.55;
-    for (let i = 0; i < teeth; i++) {
-      const x0 = X(b.x) + tw * i;
-      const p = prism([[0, 0], [tw, th], [tw, 0]], b.d, MAT.roof);
-      p.position.set(x0, b.h, Z(b.y));
-      g.add(p);
-      g.add(mesh(new THREE.BoxGeometry(0.04, th * 0.8, b.d * 0.94), MAT.glass, x0 + tw - 0.03, b.h + th * 0.45, cz));
-    }
-    top = b.h + th;
-    // Ленточное остекление по фасаду
-    g.add(mesh(new THREE.BoxGeometry(b.w * 0.9, 0.12, 0.04), MAT.glass, cx, b.h * 0.62, Z(b.y + b.d) + 0.02));
-  }
+  if (b.kind === 'shop') top = buildShop(g, b, cx, cz);
   if (b.kind === 'warehouse') {
     const p = prism([[0, 0], [b.d / 2, 0.7], [b.d, 0]], b.w, MAT.roof);
     p.rotation.y = Math.PI / 2;
@@ -121,6 +200,23 @@ function buildBuilding(b) {
     top = Math.max(top, b.h + 4.6);
   }
   if (b.vents) [1, 2.5, 4].forEach(i => g.add(cylinder(0.22, 1.1, MAT.metal, X(b.x + i), b.h, cz, 16)));
+  if (b.cyclones) {
+    // Пылеуловители-циклоны у литейного: цилиндр на конусе, на опорах, с воздуховодом в цех
+    for (let i = 0; i < 2; i++) {
+      const px = X(b.x) - 0.9, pz = Z(b.y + 1.4 + i * 1.6);
+      g.add(cylinder(0.42, 1.3, MAT.metal, px, 1.6, pz));
+      const cone = mesh(new THREE.ConeGeometry(0.42, 0.9, 24), MAT.metal, px, 1.15, pz);
+      cone.rotation.x = Math.PI;
+      g.add(cone);
+      for (const [dx, dz] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) {
+        g.add(mesh(new THREE.BoxGeometry(0.06, 1.6, 0.06), MAT.roof, px + dx, 0.8, pz + dz));
+      }
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.0, 12), MAT.metal);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(px + 0.6, 2.7, pz);
+      g.add(pipe);
+    }
+  }
   if (b.fans) [0.9, 2.4].forEach(i => {
     g.add(cylinder(0.5, 0.25, MAT.metal, X(b.x + i), b.h, cz));
     g.add(cylinder(0.42, 0.27, MAT.dark, X(b.x + i), b.h, cz));
@@ -155,7 +251,7 @@ function buildBuilding(b) {
   // Контур выбранного/наведённого корпуса: рёбра всех мешей
   const edges = new THREE.Group();
   g.traverse(o => {
-    if (o.isMesh) {
+    if (o.isMesh && !o.userData.noEdge) {
       const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 30), EDGE.clone());
       e.position.copy(o.position);
       e.rotation.copy(o.rotation);
@@ -255,6 +351,24 @@ function buildSiteFurniture() {
   for (let x = PARKING.x; x <= PARKING.x + PARKING.w + 0.01; x += 1) {
     g.add(flat(0.05, PARKING.d * 0.8, MAT.marking, X(x), Z(PARKING.y + PARKING.d * 0.6), 0.03));
   }
+  // Крытые переходы между цехами: по ним идёт деталь от литья к сборке и окраске
+  for (const [gx, gy, gd, gh] of [[9, 2.2, 2.4, 1.7], [18, 2.2, 2.4, 1.7], [27, 2.4, 2.2, 1.6]]) {
+    g.add(mesh(new THREE.BoxGeometry(1, gh, gd), MAT.wall, X(gx + 0.5), gh / 2, Z(gy + gd / 2)));
+    g.add(mesh(new THREE.BoxGeometry(1.06, 0.08, gd + 0.06), MAT.roof, X(gx + 0.5), gh + 0.04, Z(gy + gd / 2)));
+    g.add(mesh(new THREE.BoxGeometry(0.9, 0.18, 0.04), MAT.glass, X(gx + 0.5), gh * 0.65, Z(gy + gd) + 0.02));
+  }
+  // Козловой кран над ж/д веткой у склада готовой продукции
+  {
+    const cz0 = Z(13), cz1 = Z(15.5), xa = X(33.9), xb = X(35.7), hh = 3.2;
+    for (const cz of [cz0, cz1]) {
+      for (const lx of [xa, xb]) g.add(mesh(new THREE.BoxGeometry(0.1, hh, 0.1), MAT.metal, lx, hh / 2, cz));
+      g.add(mesh(new THREE.BoxGeometry(xb - xa + 0.5, 0.22, 0.16), MAT.metal, (xa + xb) / 2, hh + 0.1, cz));
+    }
+    g.add(mesh(new THREE.BoxGeometry(0.5, 0.3, cz1 - cz0 + 0.3), MAT.roof, (xa + xb) / 2 - 0.2, hh + 0.35, (cz0 + cz1) / 2));
+    g.add(mesh(new THREE.BoxGeometry(0.02, 1.4, 0.02), MAT.dark, (xa + xb) / 2 - 0.2, hh - 0.6, (cz0 + cz1) / 2));
+    g.add(mesh(new THREE.BoxGeometry(0.5, 0.35, 0.5), MAT.roof, (xa + xb) / 2 - 0.2, hh - 1.45, (cz0 + cz1) / 2));
+  }
+
   // Деревья: ствол и низкополигональная крона
   for (const [tx, ty] of TREES) {
     g.add(cylinder(0.07, 0.6, MAT.sleeper, X(tx), 0, Z(ty), 8));
