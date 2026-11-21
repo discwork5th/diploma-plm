@@ -83,24 +83,88 @@ function merged(parts, material) {
   return m;
 }
 
-// Подъёмные секционные ворота: тёмный проём с тёплым светом из цеха и
-// полотно, которое при открытии «сматывается» вверх (сжимается к верхней кромке).
-// Точка привязки полотна — верхний край, поэтому масштаб по высоте поднимает
-// его, а не опускает.
-function makeDoor(g, doors, w, h, x, z) {
-  g.add(mesh(new THREE.BoxGeometry(w, h, 0.04), MAT.interior, x, h / 2, z + 0.01));
+// Что видно в открытых воротах: тёплый свет цеха и уходящий вглубь пол.
+// Стены у нас сплошные, вырезать в них проём дорого, поэтому глубину
+// изображает текстура — градиент света и сходящиеся линии пола
+let interiorTex = null;
+function interiorTexture() {
+  if (interiorTex) return interiorTex;
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d');
+  const wall = ctx.createLinearGradient(0, 0, 0, 40);
+  wall.addColorStop(0, '#1a140c');
+  wall.addColorStop(1, '#6b4a22');
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, 64, 40);
+  const floor = ctx.createLinearGradient(0, 40, 0, 64);
+  floor.addColorStop(0, '#8a6430');
+  floor.addColorStop(1, '#3a2c1a');
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, 40, 64, 24);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  for (const x of [-40, -10, 20, 44, 74, 104]) { ctx.beginPath(); ctx.moveTo(32 + (x - 32) * 0.25, 40); ctx.lineTo(x, 64); ctx.stroke(); }
+  interiorTex = new THREE.CanvasTexture(c);
+  interiorTex.colorSpace = THREE.SRGBColorSpace;
+  return interiorTex;
+}
+
+// Погрузчик: корпус, ограждение кабины, мачта и вилы с поддоном
+function makeForklift() {
+  const f = new THREE.Group();
+  f.add(mesh(new THREE.BoxGeometry(0.34, 0.2, 0.44), MAT.marking, 0, 0.16, 0));
+  for (const [dx, dz] of [[-0.14, -0.15], [0.14, -0.15], [-0.14, 0.08], [0.14, 0.08]]) {
+    f.add(mesh(new THREE.BoxGeometry(0.025, 0.28, 0.025), MAT.dark, dx, 0.4, dz));
+  }
+  f.add(mesh(new THREE.BoxGeometry(0.32, 0.03, 0.28), MAT.dark, 0, 0.55, -0.035));
+  f.add(mesh(new THREE.BoxGeometry(0.26, 0.5, 0.04), MAT.dark, 0, 0.3, 0.25));
+  for (const dx of [-0.08, 0.08]) f.add(mesh(new THREE.BoxGeometry(0.04, 0.02, 0.32), MAT.metal, dx, 0.08, 0.42));
+  f.add(mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), MAT.sleeper, 0, 0.19, 0.42));
+  for (const [dx, dz] of [[-0.15, -0.14], [0.15, -0.14], [-0.15, 0.14], [0.15, 0.14]]) {
+    const w = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 12), MAT.dark, dx, 0.07, dz);
+    w.rotation.z = Math.PI / 2;
+    f.add(w);
+  }
+  f.traverse(o => { o.userData.noEdge = true; });
+  return f;
+}
+
+// Подъёмные секционные ворота: портал, «интерьер» и полотно, которое при
+// открытии сматывается вверх (сжимается к верхней кромке — точка привязки
+// полотна наверху). Если withForklift, за воротами живёт погрузчик:
+// ворота открываются только чтобы он выехал и вернулся
+function makeDoor(g, doors, w, h, x, z, withForklift) {
+  // Всё стоит перед цоколем (он выступает на 0,03), иначе нижний край проёма
+  // перекрывала бы тёмная полоса цоколя
+  const inside = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: interiorTexture() }));
+  inside.position.set(x, h / 2, z + 0.05);
+  inside.userData.noEdge = true;
+  g.add(inside);
+  const frame = [
+    [new THREE.BoxGeometry(0.07, h + 0.05, 0.08), x - w / 2 - 0.035, (h + 0.05) / 2, z + 0.06],
+    [new THREE.BoxGeometry(0.07, h + 0.05, 0.08), x + w / 2 + 0.035, (h + 0.05) / 2, z + 0.06],
+    [new THREE.BoxGeometry(w + 0.14, 0.07, 0.08), x, h + 0.035, z + 0.06]
+  ];
+  g.add(merged(frame, MAT.roof));
   const leaf = new THREE.Group();
-  leaf.position.set(x, h, z + 0.05);
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, h, 0.05), MAT.door);
+  leaf.position.set(x, h, z + 0.08);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(w * 0.98, h, 0.04), MAT.door);
   panel.position.y = -h / 2;
   panel.castShadow = true;
   panel.userData.noEdge = true;
   leaf.add(panel);
   const ribs = [];
-  for (let r = 0.18; r < h - 0.05; r += 0.22) ribs.push([new THREE.BoxGeometry(w * 0.9, 0.025, 0.02), 0, -r, 0.035]);
+  for (let r = 0.18; r < h - 0.05; r += 0.22) ribs.push([new THREE.BoxGeometry(w * 0.92, 0.025, 0.02), 0, -r, 0.03]);
   leaf.add(merged(ribs, MAT.roof));
   g.add(leaf);
-  doors.push({ leaf, x, z, open: 0, phase: (x * 7.3 + z * 3.1) % 40 });
+  let forklift = null;
+  if (withForklift) {
+    forklift = makeForklift();
+    forklift.position.set(x, 0, z);
+    forklift.visible = false;
+    g.add(forklift);
+  }
+  doors.push({ leaf, x, z, open: 0, forklift });
 }
 
 // Производственный корпус: стальной каркас с пилястрами по фасадам, цоколь,
@@ -138,7 +202,7 @@ function buildShop(g, b, cx, cz, doors) {
   const gates = Math.max(1, Math.floor(b.w / 3.5));
   for (let k = 0; k < gates; k++) {
     const gx = x0 + (b.w / (gates + 1)) * (k + 1);
-    makeDoor(g, doors, 1.3, 1.55, gx, z1);
+    makeDoor(g, doors, 1.3, 1.55, gx, z1, k === 0);   // погрузчик — у первых ворот цеха
     g.add(mesh(new THREE.BoxGeometry(1.6, 0.06, 0.45), MAT.metal, gx, 1.68, z1 + 0.25));
     g.add(mesh(new THREE.BoxGeometry(0.32, 0.6, 0.05), MAT.dark, gx + 1.05, 0.3, z1 + 0.04));
   }
@@ -198,7 +262,7 @@ function buildBuilding(b) {
     g.add(p);
     top = b.h + 0.7;
     // Ворота к проезду
-    for (let i = 1.2; i < b.w - 0.5; i += 2.4) makeDoor(g, doors, 1, 1.15, X(b.x + i), Z(b.y + b.d));
+    for (let i = 1.2, n = 0; i < b.w - 0.5; i += 2.4, n++) makeDoor(g, doors, 1, 1.15, X(b.x + i), Z(b.y + b.d), n === 0);
   }
   if (b.kind === 'office') {
     for (let f = 0; f < b.h - 0.5; f += 1) {
@@ -716,17 +780,25 @@ const Plant3D = ({ byLocation, live, selected, onSelect }) => {
         const tp = truckPath(t / 55);
         truck.position.copy(tp.pos);
         truck.rotation.y = tp.heading;
-        // Ворота: открываются, когда рядом грузовик, а иногда и сами — кто-то
-        // выезжает на погрузчике. Плавно, со скоростью ~1 с на полный ход
+        // Ворота открываются только ради погрузчика: открылись → он выехал,
+        // постоял с грузом → вернулся → ворота закрылись. У каждого склада и
+        // цеха свой момент, чтобы не всё одновременно.
+        //   0–1,2 с открываются · 1,2–3,4 выезд · 3,4–6 стоит · 6–8,2 заезд · дальше закрываются
         const dt = Math.min(0.1, t - (loop.last ?? t));
         loop.last = t;
+        let n = 0;
         for (const item of buildings.values()) {
           for (const d of item.doors) {
-            const near = Math.hypot(truck.position.x - d.x, truck.position.z - d.z) < 3.4;
-            const cycle = (t + d.phase) % 40 < 6;
-            const target = near || cycle ? 1 : 0;
-            d.open += (target - d.open) * Math.min(1, dt * 2.5);
-            d.leaf.scale.y = 1 - 0.88 * d.open;
+            if (!d.forklift) { d.leaf.scale.y = 1; continue; }
+            const c = (t + n * 7.3) % 42;
+            n++;
+            const u = c < 1.2 ? 0 : c < 3.4 ? (c - 1.2) / 2.2 : c < 6 ? 1 : c < 8.2 ? 1 - (c - 6) / 2.2 : 0;
+            const ease = u * u * (3 - 2 * u);
+            d.forklift.visible = u > 0;
+            d.forklift.position.z = d.z - 0.3 + ease * 1.25;
+            const target = c < 8.6 ? 1 : 0;
+            d.open += (target - d.open) * Math.min(1, dt * 3);
+            d.leaf.scale.y = 1 - 0.9 * d.open;
           }
         }
         const atGate = Math.hypot(truck.position.x - X(GATE.x + GATE.w / 2), truck.position.z - Z(SITE_D)) < 3;
