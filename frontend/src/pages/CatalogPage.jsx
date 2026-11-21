@@ -82,7 +82,7 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
             </button>
             <button
               onClick={onExport}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
             >
               <Download className="w-5 h-5" />
               Экспорт
@@ -102,21 +102,18 @@ const CatalogPage = ({ products, stages, getStageStyle, onAdd, onExport, onOpen,
           return (
             <div
               key={product.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow"
+              className="bg-white rounded-lg border border-slate-300 overflow-hidden hover:border-slate-500 transition-colors flex flex-col"
             >
-              <ProductImage src={product.image} alt={product.name} className="w-full h-48 object-contain bg-slate-50 p-2" />
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-xs font-medium text-slate-500">ID: {product.id}</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageStyle.badge}`}>{stageName}</span>
+              <ProductImage src={product.image} alt={product.name} className="w-full h-36 object-contain bg-slate-50 border-b border-slate-200 p-3" />
+              <div className="p-5 flex flex-col flex-1">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-lg leading-snug text-slate-900">{product.name || 'Без названия'}</h3>
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap ${stageStyle.badge}`}>{stageName}</span>
                 </div>
-                <h3 className="font-bold text-lg text-slate-800 mb-2">{product.name || 'Без названия'}</h3>
-                <div className="space-y-1 text-sm text-slate-600 mb-4">
-                  <p>
-                    <span className="font-medium">Тип:</span> {product.type || '—'}
-                  </p>
-                  <p>
-                    <span className="font-medium">S/N:</span> {product.serialNumber || '—'}
+                <div className="space-y-1 text-sm text-slate-600 mb-4 flex-1">
+                  <p>{product.type || '—'}</p>
+                  <p className="font-display text-slate-800 tracking-wide">
+                    Зав. № {product.serialNumber || '—'}
                   </p>
                   <p className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 flex-shrink-0" />

@@ -50,13 +50,13 @@ export const BarChart = ({ data }) => {
     <div className="space-y-2">
       {data.map((d, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="w-32 flex-shrink-0 text-sm text-slate-700 truncate" title={d.label}>
+          <div className="w-44 flex-shrink-0 text-sm text-slate-700 truncate" title={d.label}>
             {d.label}
           </div>
-          <div className="flex-1 bg-slate-100 rounded-full h-7 overflow-hidden relative">
+          <div className="flex-1 bg-slate-100 rounded-sm h-7 overflow-hidden relative">
             <div
-              className="h-full rounded-full transition-all flex items-center justify-end pr-2"
-              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color || '#3b82f6', minWidth: '24px' }}
+              className="h-full rounded-sm transition-all flex items-center justify-end pr-2"
+              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color || '#535B63', minWidth: '24px' }}
             >
               <span className="text-xs font-semibold text-white">{d.value}</span>
             </div>

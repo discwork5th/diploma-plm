@@ -14,11 +14,12 @@ import SummaryTile from './SummaryTile';
 
 // Палитра для диаграмм
 const STAGE_COLORS = {
-  blue:   '#3b82f6',
-  purple: '#a855f7',
-  green:  '#10b981',
-  yellow: '#f59e0b',
-  red:    '#ef4444',
+  blue:   '#45648D',
+  purple: '#7B6E93',
+  green:  '#4F8A64',
+  yellow: '#B8913C',
+  red:    '#A8483A',
+  gray:   '#9AA2AA',
 };
 
 const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
@@ -80,7 +81,7 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
   const typeBarData = data.byType.map(t => ({
     label: t.type,
     value: t.count,
-    color: '#3b82f6'
+    color: '#535B63'
   }));
 
   const inOperation = data.byStage.find(s => s.id === 'operation')?.count || 0;
@@ -111,26 +112,26 @@ const Dashboard = ({ onOpenProduct, onGoCatalog }) => {
           label="Всего изделий в системе"
           value={data.totalProducts}
           icon={Package}
-          color="bg-blue-500"
+          color="bg-slate-700"
           onClick={onGoCatalog}
         />
         <SummaryTile
           label="В эксплуатации"
           value={inOperation}
           icon={Factory}
-          color="bg-green-500"
+          color="bg-[#4F8A64]"
         />
         <SummaryTile
           label="Требуют внимания"
           value={warningCount}
           icon={AlertTriangle}
-          color="bg-amber-500"
+          color="bg-[#B8913C]"
         />
         <SummaryTile
           label="Критическое состояние"
           value={data.bySeverity.critical}
           icon={AlertCircle}
-          color="bg-red-500"
+          color="bg-[#A8483A]"
         />
       </div>
 

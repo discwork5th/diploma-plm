@@ -346,13 +346,53 @@ function cardsFor(knownIds, catalog, answer) {
   }));
 }
 
+// Без модели: простые правила по ключевым словам выбирают тот же инструмент,
+// который выбрала бы модель. Не так гибко, но на сервере без модели помощник
+// всё равно отвечает по делу на типовые вопросы.
 function fallback(question, catalog, notice) {
+  const q = lower(question);
+  const toCard = (p) => ({ id: p.id, name: p.name, serialNumber: p.serialNumber, location: p.location,
+    stageId: p.stageId, stageName: p.stageName, severity: p.severity, image: p.image });
+  const byIds = (items) => items.map(i => catalog.find(p => p.id === i.id)).filter(Boolean).map(toCard);
+  const run = (tool, args, answer) => {
+    const result = TOOLS[tool].run(args, catalog);
+    return { mode: 'search', notice, answer: answer(result),
+             trace: [{ tool, args, total: result.total, error: null }], products: byIds(result.items.slice(0, 8)) };
+  };
+
+  if (/резерв|склад|замен/.test(q)) {
+    // Требование вида «подачей от 8», «мощностью не меньше 15»
+    const SPEC_WORDS = { подач: 'Подача', напор: 'Напор', мощн: 'Мощность', давлен: 'давление', производ: 'Производительность' };
+    const req = q.match(/(подач|напор|мощн|давлен|производ)[а-яё]*\s+(?:от|не меньше|не менее|>=?)\s*(\d+(?:[.,]\d+)?)/);
+    const args = { query: question.split(/\s+/).filter(w => !/^(резерв|склад|замен)/i.test(w) && !/^(есть|ли|на|в|с|от|для)$/i.test(w)).join(' ') };
+    if (req) Object.assign(args, { spec: SPEC_WORDS[req[1]], min: Number(req[2].replace(',', '.')) });
+    return run('find_reserve', args, r => r.total
+      ? `В резерве подходящих по словам запроса: ${r.total}. Характеристики сравните в карточках.`
+      : 'В резерве по словам запроса ничего не нашлось.');
+  }
+  if (/(^|[^а-яё])то([^а-яё]|$)|обслуживан/.test(q)) {
+    const days = /недел/.test(q) ? (/две|2/.test(q) ? 14 : 7) : /месяц/.test(q) ? 30 : 30;
+    return run('maintenance_plan', { days }, r => `ТО в ближайшие ${days} дней или уже просрочено: ${r.total}, из них просрочено ${r.overdue}.`);
+  }
+  if (/критич|авари/.test(q)) {
+    const num = (q.match(/цех[а-яё]*\s*№?\s*(\d+)/) || [])[1];
+    const loc = num ? `Цех №${num}` : undefined;
+    return run('search_equipment', { condition: 'критическое', location: loc },
+      r => `В критическом состоянии${loc ? ` (${loc})` : ''}: ${r.total}.`);
+  }
+
+  const group = /по мест|где стоит|по цех/.test(q) ? 'location' : /по тип/.test(q) ? 'type' : /по этап/.test(q) ? 'stage' : /по состоян/.test(q) ? 'condition' : null;
+  if (group) {
+    const result = TOOLS.fleet_stats.run({ group_by: group }, catalog);
+    return { mode: 'search', notice, products: [], trace: [{ tool: 'fleet_stats', args: { group_by: group }, total: result.total, error: null }],
+      answer: `Всего: ${result.total}.\n` + result.groups.map(g => `- ${g.name}: ${g.count}`).join('\n') };
+  }
+
   const found = searchCatalog(question, catalog).slice(0, 8).map(r => r.product);
   return {
     mode: 'search', notice, trace: [],
     answer: found.length ? `Найдено по словам запроса: ${found.length}.` : 'По словам запроса ничего не нашлось.',
-    products: found.map(p => ({ id: p.id, name: p.name, serialNumber: p.serialNumber, location: p.location,
-      stageId: p.stageId, stageName: p.stageName, severity: p.severity, image: p.image }))
+    products: found.map(toCard)
   };
 }
 

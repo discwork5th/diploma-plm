@@ -69,3 +69,18 @@ test('модель недоступна — отвечаем обычным по
   assert.strictEqual(res.mode, 'search');
   assert.ok(res.products.length > 0);
 });
+
+test('без модели типовые вопросы идут в нужный инструмент', async () => {
+  const saved = process.env.LLM_BASE_URL;
+  process.env.LLM_BASE_URL = '';
+  try {
+    const r1 = await agent.chat([{ role: 'user', content: 'Есть ли в резерве насос с подачей от 8 м³/ч?' }]);
+    assert.deepStrictEqual([r1.trace[0].tool, r1.trace[0].args.spec, r1.trace[0].args.min], ['find_reserve', 'Подача', 8]);
+    const r2 = await agent.chat([{ role: 'user', content: 'Что требует ТО в ближайшие две недели?' }]);
+    assert.deepStrictEqual([r2.trace[0].tool, r2.trace[0].args.days], ['maintenance_plan', 14]);
+    const r3 = await agent.chat([{ role: 'user', content: 'Что в критическом состоянии в Цехе №2?' }]);
+    assert.strictEqual(r3.trace[0].args.location, 'Цех №2');
+  } finally {
+    process.env.LLM_BASE_URL = saved;
+  }
+});
