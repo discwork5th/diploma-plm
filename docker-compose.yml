@@ -27,9 +27,16 @@ services:
       DOMAIN: ${DOMAIN:?Укажи DOMAIN в файле .env}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/sites:/etc/caddy/sites:ro   # сайты других проектов на этом сервере
       - caddy-data:/data         # сертификаты: чтобы не перевыпускать при перезапуске
     depends_on:
       - app
+
+# Общая сеть с постоянным именем: к ней подключаются другие проекты на сервере (радар),
+# чтобы Caddy мог передавать им запросы по имени контейнера
+networks:
+  default:
+    name: web
 
 volumes:
   plm-data:
